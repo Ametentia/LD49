@@ -5,8 +5,12 @@ IF NOT EXIST "..\build" (mkdir "..\build")
 
 pushd "..\build" > NUL
 
-SET COMPILER_FLAGS=-nologo -W4
-SET LINKER_FLAGS=-incremental:no kernel32.lib
+SET COMPILER_FLAGS=-nologo -W4 -wd4201 -wd4505 -wd4244 -I "..\base"
+SET LINKER_FLAGS=-incremental:no gdi32.lib kernel32.lib user32.lib shell32.lib shcore.lib pathcch.lib ole32.lib
+
+REM Build renderer
+REM
+call "..\base\renderer\windows_wgl.bat" debug
 
 REM Debug build
 REM
