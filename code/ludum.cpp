@@ -19,6 +19,8 @@ function void LudumUpdateRender(Game_Context *context, Input *input, Renderer_Bu
 
     Initialise(batch, &state->assets, renderer_buffer);
 
+    SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(0, 0, 8));
+
     if (IsPressed(input->keys[Key_W])) {
         DrawClear(batch, V4(1, 0, 1, 1));
     }
