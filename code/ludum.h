@@ -2,6 +2,7 @@
 #define LUDUM_H_
 
 #include <base.h>
+#include "splash.h"
 
 struct Game_State {
     Memory_Arena perm;
@@ -9,6 +10,8 @@ struct Game_State {
 
     Audio_State audio_state;
     Asset_Manager assets;
+
+    Mode_Splash splash;
 };
 
 struct Game_Context {
