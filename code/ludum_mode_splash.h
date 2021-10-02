@@ -1,6 +1,7 @@
 #if !defined(SPLASH_H_)
 #define SPLASH_H_
 enum Move_Type {
+    MoveType_None,
     MoveType_Left,
     MoveType_Right,
     MoveType_Up,

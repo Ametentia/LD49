@@ -48,7 +48,7 @@ function Move FindMove(Block blocks[], v2 empty, Move_Type lastMove, Random *ran
             moveCount++;
         }
     }
-    u64 randNum = RandomU32(rand, 0, moveCount);
+    u32 randNum = RandomU32(rand, 0, moveCount);
     return moves[randNum];
 }
 
@@ -90,7 +90,7 @@ function void ModeSplash(Game_State *state, Input *input) {
     splash->timer = 0;
     splash->move_time = 0.07f;
     splash->fade_start = splash->move_time*(splash->steps+11);
-    splash->rand = RandomSeed((u64)(input->time)*1232);
+    splash->rand = RandomSeed(93847636);
     for(u8 i = 0; i < 8; i++) {
         u8 mid_skipped = i;
         if(i > 3){
@@ -102,7 +102,7 @@ function void ModeSplash(Game_State *state, Input *input) {
         splash->blocks[i].blockPos = V2(x, y);
     }
     v2 empty = V2(1, 1);
-    Move_Type lastMove = MoveType_Up;
+    Move_Type lastMove = MoveType_None;
     for(u8 i = 0; i < splash->steps; i++) {
         Move move = FindMove(splash->blocks, empty, lastMove, &splash->rand);
         Move reverse = {};
@@ -203,6 +203,7 @@ function void UpdateRenderModeSplash(Game_State *state, Input *input, Renderer_B
         DrawQuad(batch, ame, V2(0, 1.9f), V2(4, 0.8f), 0, V4(1,1,1,Min(diff*2, 1)));
     }
     if (IsPressed(input->keys[Key_Space]) || (mode->time - mode->fade_start)>2) {
-        // TODO @Matt put the skip in here when we have state management
+        // TODO @Anyone, before release change this to the menu
+        ModePlay(state);
     }
 }

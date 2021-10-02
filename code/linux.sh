@@ -7,7 +7,7 @@ fi
 
 pushd "../build" > /dev/null
 
-COMPILER_FLAGS="-Wall -Wno-unused-function -I ../base"
+COMPILER_FLAGS="-Wall -Wno-unused-function -Wno-switch -I ../base"
 LINKER_FLAGS="-ldl -lpthread"
 
 # Build renderer
