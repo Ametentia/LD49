@@ -5,7 +5,7 @@ IF NOT EXIST "..\build" (mkdir "..\build")
 
 pushd "..\build" > NUL
 
-SET COMPILER_FLAGS=-nologo -W4 -wd4201 -wd4505 -wd4244 -I "..\base"
+SET COMPILER_FLAGS=-nologo -W4 -wd4305 -wd4201 -wd4505 -wd4244 -I "..\base"
 SET LINKER_FLAGS=-incremental:no gdi32.lib kernel32.lib user32.lib shell32.lib shcore.lib pathcch.lib ole32.lib
 
 REM Build renderer

@@ -81,14 +81,14 @@ function v2 ApplyMove(Block blocks[], Move move) {
 }
 
 function void ModeSplash(Game_State *state, Input *input) {
-    Reset(&state->mode);
+    Reset(&state->mode_arena);
 
-    Mode_Splash *splash = AllocType(&state->mode, Mode_Splash);
-    splash->alloc = &state->mode;
+    Mode_Splash *splash = AllocType(&state->mode_arena, Mode_Splash);
+    splash->alloc = &state->mode_arena;
     splash->steps = 16;
     splash->time = 0;
     splash->timer = 0;
-    splash->move_time = 0.07;
+    splash->move_time = 0.07f;
     splash->fade_start = splash->move_time*(splash->steps+11);
     splash->rand = RandomSeed((u64)(input->time)*1232);
     for(u8 i = 0; i < 8; i++) {
@@ -116,7 +116,8 @@ function void ModeSplash(Game_State *state, Input *input) {
         lastMove = move.move;
     }
 
-    state->splash = *splash;
+    state->mode   = GameMode_Splash;
+    state->splash = splash;
 }
 
 function void DrawLogoSection(Image_Handle image, Draw_Batch *batch, u8 count, u8 x, u8 y, v2 centre, v2 dim, v4 colour) {
@@ -149,7 +150,7 @@ function void UpdateRenderModeSplash(Game_State *state, Input *input, Renderer_B
     DrawClear(batch, V4(0, 0, 0, 0));
     SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(0, 0, 15));
 
-    Mode_Splash *mode = &state->splash;
+    Mode_Splash *mode = state->splash;
 
     f32 dt = input->delta_time;
     mode->time += dt;
@@ -199,7 +200,7 @@ function void UpdateRenderModeSplash(Game_State *state, Input *input, Renderer_B
             V2(size, size),
             V4(1,1,1, Min(diff*2, 1))
         );
-        DrawQuad(batch, ame, V2(0, 1.9), V2(4, 0.8), 0, V4(1,1,1,Min(diff*2, 1)));
+        DrawQuad(batch, ame, V2(0, 1.9f), V2(4, 0.8f), 0, V4(1,1,1,Min(diff*2, 1)));
     }
     if (IsPressed(input->keys[Key_Space]) || (mode->time - mode->fade_start)>2) {
         // TODO @Matt put the skip in here when we have state management

@@ -2,16 +2,30 @@
 #define LUDUM_H_
 
 #include <base.h>
-#include "splash.h"
+
+struct Game_State;
+
+#include "ludum_mode_splash.h"
+#include "ludum_mode_play.h"
+
+enum Game_Mode {
+    GameMode_None = 0,
+    GameMode_Splash,
+    GameMode_Play
+};
 
 struct Game_State {
-    Memory_Arena perm;
-    Memory_Arena mode;
+    Memory_Arena perm_arena;
+    Memory_Arena mode_arena;
 
     Audio_State audio_state;
     Asset_Manager assets;
 
-    Mode_Splash splash;
+    Game_Mode mode;
+    union {
+        Mode_Splash *splash;
+        Mode_Play   *play;
+    };
 };
 
 struct Game_Context {
