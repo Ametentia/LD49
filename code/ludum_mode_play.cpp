@@ -1,4 +1,4 @@
-
+#include <stdio.h>
 function void ModePlay(Game_State *state, Random random) {
     Reset(&state->mode_arena);
 
@@ -18,6 +18,10 @@ function void ModePlay(Game_State *state, Random random) {
 
     player->p   = V2(0.6, 0.6);
     player->dp  = V2(0, 0);
+    player->time_off_ground = 0;
+
+    Image_Handle walk_sheet = GetImageByName(&state->assets, "Walking_sheet");
+    Initialise(&(player->animation), walk_sheet, 1, 20, 1.0/64.0);
 
     player->birds[0].image  = GetImageByName(&state->assets, "bird_green");
     player->birds[0].cp     = 50;
@@ -36,6 +40,19 @@ function void ModePlay(Game_State *state, Random random) {
 
     player->dim = V2(0.3, 0.3);
 
+    // Setup World
+    Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
+    for(int i = 0; i < WORLD_X_SIZE; i++){
+        u32 y_offset = 5;
+        if(i > 5) {
+            y_offset = 2;
+        }
+        for(int j = 0; j < WORLD_Y_SIZE; j++){
+            tiles[i][j].p = V2(i*WORLD_TILE_SIZE, (j+y_offset)*WORLD_TILE_SIZE);
+            tiles[i][j].dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
+        }
+    }
+
     state->mode = GameMode_Play;
     state->play = play;
 }
@@ -49,7 +66,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     Initialise(batch, &state->assets, renderer_buffer);
 
     Player *player = &play->player;
-    UpdatePlayer(player, input);
+    UpdatePlayer(player, input, play, batch);
 
     // @Debug: Showing player movement over time
     //
@@ -70,13 +87,31 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
 
     DrawClear(batch, V4(0.01f, 0.01f, 0.01f, 1.0f));
 
+    // Draw World tiles
+    Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
+    Image_Handle tile_sprite = GetImageByName(&state->assets, "ground_01");
+    for(int i = 0; i < WORLD_X_SIZE; i++){
+        for(int j = 0; j < WORLD_Y_SIZE; j++){
+            Tile t = tiles[i][j];
+            DrawQuad(batch, tile_sprite, t.p, V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE), 0, V4(1,1,1,1));
+            int x_right = t.p.x + t.dim.x/2.0 > player->p.x - player->dim.x/2.0;
+            int x_left = t.p.x - t.dim.x/2.0 < player->p.x + player->dim.x/2.0;
+            int y_up = t.p.y + t.dim.y/2.0 > player->p.y - player->dim.y/2.0;
+            int y_down = t.p.y - t.dim.y/2.0 < player->p.y + player->dim.y/2.0;
+            if(x_right && x_left && y_up && y_down) {
+                DrawQuad(batch, tile_sprite, t.p, V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE), 0, V4(1,0,0,1));
+            }
+        }
+    }
+
     u32 count = Min(play->count, ArraySize(play->last_p));
     for (u32 it = 0; it < count; ++it) {
         DrawQuad(batch, { 0 }, play->last_p[it], V2(0.05, 0.05), 0, V4(0, 1, 0, 1));
     }
 
     Image_Handle image = GetImageByName(&state->assets, "main_standing_01");
-    DrawQuad(batch, image, player->p, V2(player->x_scale, 1) * player->dim, 0, V4(1, 1, 1, 1));
+    //DrawQuad(batch, image, player->p, V2(player->x_scale, 1) * V2(0.3f, 0.3f), 0, V4(1, 1, 1, 1));
+    DrawAnimation(batch, &(player->animation), player->p, V2(player->x_scale, 1) * player->dim, 0, V4(1,1,1,1));
 
 #if 0
     else if (Dot(player_bird_dir, V2(1, 0)) < 0) {
@@ -108,7 +143,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     }
 }
 
-function void UpdatePlayer(Player *player, Input *input) {
+function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_Batch *batch) {
     f32 dt = input->delta_time;
 
     b32 on_ground = (player->flags & Player_OnGround);
@@ -122,6 +157,7 @@ function void UpdatePlayer(Player *player, Input *input) {
     if (JustPressed(input->keys[Key_K])) {
         player->last_jump_time = input->time;
     }
+    UpdateAnimation(&(player->animation), dt);
 
     // Move left
     //
@@ -131,7 +167,6 @@ function void UpdatePlayer(Player *player, Input *input) {
 
         player->x_scale = -1;
     }
-
     // Move right
     //
     if (IsPressed(input->keys[Key_D])) {
@@ -145,13 +180,18 @@ function void UpdatePlayer(Player *player, Input *input) {
     //
     if (IsZero(ddp.x)) {
         player->dp.x *= (1.0f / (1 + (PLAYER_DAMPING * dt)));
+        player->animation.current_frame = 0;
     }
 
-    if (on_ground) {
+    if (player->time_off_ground < PLAYER_COYOTE_TIME || on_ground) {
         if ((input->time - player->last_jump_time) <= PLAYER_JUMP_BUFFER_TIME) {
             player->dp.y   = -Sqrt(2 * gravity * PLAYER_MAX_JUMP_HEIGHT);
             player->flags &= ~Player_OnGround;
+            player->time_off_ground = 0;
         }
+    } 
+    if(!on_ground){
+        player->time_off_ground += dt;
     }
 
     if (!IsPressed(input->keys[Key_K]) && (player->dp.y < 0)) {
@@ -172,11 +212,19 @@ function void UpdatePlayer(Player *player, Input *input) {
     if (Abs(player->dp.x) > PLAYER_MAX_SPEED_X) {
         player->dp.x *= (PLAYER_MAX_SPEED_X / Abs(player->dp.x));
     }
-
-    // @Temp: Hardcoded floor line for testing
-    //
-    if (player->p.y >= 2) {
-        player->p.y = 2;
-        player->flags |= Player_OnGround;
+    Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
+    for(int i = 0; i < WORLD_X_SIZE; i++){
+        for(int j = 0; j < WORLD_Y_SIZE; j++){
+            Tile t = tiles[i][j];
+            int x_right = t.p.x + t.dim.x/2.0 > player->p.x - player->dim.x/2.0;
+            int x_left = t.p.x - t.dim.x/2.0 < player->p.x + player->dim.x/2.0;
+            int y_up = t.p.y + t.dim.y/2.0 > player->p.y - player->dim.y/2.0;
+            int y_down = t.p.y - t.dim.y/2.0 < player->p.y + player->dim.y/2.0;
+            if(x_right && x_left && y_up && y_down) {
+                player->p.y = t.p.y - t.dim.y;
+                player->flags |= Player_OnGround;
+                player->dp.y = 0;
+            } 
+        }
     }
 }

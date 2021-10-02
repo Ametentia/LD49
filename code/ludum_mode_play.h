@@ -5,10 +5,16 @@
 // tweak them to see if there is a better "feel" for the movement
 //
 
+// In elementary units
+//
+#define WORLD_X_SIZE (50)
+#define WORLD_Y_SIZE (50)
+
 // In "world units"
 //
 #define PLAYER_MAX_JUMP_HEIGHT (1.2f)
 #define PLAYER_MIN_JUMP_HEIGHT (0.3f)
+#define WORLD_TILE_SIZE (0.25f)
 
 // In seconds
 //
@@ -57,14 +63,21 @@ struct Bird_Follower {
 struct Player {
     u32 flags;
     f32 last_jump_time;
+    f32 time_off_ground;
 
     v2 p;
     v2 dp;
-
+    Sprite_Animation animation;
     Bird_Follower birds[3];
 
     f32 x_scale;
     v2 dim;
+};
+
+struct Tile {
+    v2 p;
+    v2 dim;
+    Image_Handle asset;
 };
 
 struct Mode_Play {
@@ -84,11 +97,15 @@ struct Mode_Play {
     //
     v2 camera_p;
     v2 camera_dp;
+
+    // World data
+    //
+    Tile tiles[WORLD_X_SIZE][WORLD_Y_SIZE];
 };
 
 function void ModePlay(Game_State *state, Random random);
 function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer);
 
-function void UpdatePlayer(Player *player, Input *input);
+function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_Batch *draw_batch);
 
 #endif  // LUDUM_MODE_PLAY_H_
