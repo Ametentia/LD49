@@ -184,7 +184,7 @@ function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_B
     }
 
     if (player->time_off_ground < PLAYER_COYOTE_TIME || on_ground) {
-        if ((input->time - player->last_jump_time) <= PLAYER_JUMP_BUFFER_TIME) {
+        if ((input->time - player->last_jump_time) <= PLAYER_JUMP_BUFFER_TIME && on_ground) {
             player->dp.y   = -Sqrt(2 * gravity * PLAYER_MAX_JUMP_HEIGHT);
             player->flags &= ~Player_OnGround;
             player->time_off_ground = 0;
@@ -212,6 +212,7 @@ function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_B
     if (Abs(player->dp.x) > PLAYER_MAX_SPEED_X) {
         player->dp.x *= (PLAYER_MAX_SPEED_X / Abs(player->dp.x));
     }
+
     Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
     for(int i = 0; i < WORLD_X_SIZE; i++){
         for(int j = 0; j < WORLD_Y_SIZE; j++){
