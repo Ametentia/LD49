@@ -39,6 +39,21 @@ enum Player_Flags {
     Player_OnGround = (1 << 0)
 };
 
+struct Bird_Follower {
+    b32 alive;
+
+    Image_Handle image;
+
+    v2 p;
+    v2 dp;
+
+    f32 cp, vp;
+    v2 offset;
+
+    f32 dir_timer;
+    f32 x_scale;
+};
+
 struct Player {
     u32 flags;
     f32 last_jump_time;
@@ -46,6 +61,9 @@ struct Player {
     v2 p;
     v2 dp;
 
+    Bird_Follower birds[3];
+
+    f32 x_scale;
     v2 dim;
 };
 
@@ -56,9 +74,11 @@ struct Mode_Play {
     //
     Player player;
 
+    Random random;
+
     u32 count;
     u32 next_last_p;
-    v2 last_p[128];;
+    v2 last_p[128];
 
     // Camera movement
     //
@@ -66,7 +86,7 @@ struct Mode_Play {
     v2 camera_dp;
 };
 
-function void ModePlay(Game_State *state);
+function void ModePlay(Game_State *state, Random random);
 function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer);
 
 function void UpdatePlayer(Player *player, Input *input);

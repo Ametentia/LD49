@@ -204,6 +204,6 @@ function void UpdateRenderModeSplash(Game_State *state, Input *input, Renderer_B
     }
     if (IsPressed(input->keys[Key_Space]) || (mode->time - mode->fade_start)>2) {
         // TODO @Anyone, before release change this to the menu
-        ModePlay(state);
+        ModePlay(state, RandomSeed(input->ticks));
     }
 }
