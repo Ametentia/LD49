@@ -90,7 +90,7 @@ function void ModeSplash(Game_State *state, Input *input) {
     splash->timer = 0;
     splash->move_time = 0.07f;
     splash->fade_start = splash->move_time*(splash->steps+11);
-    splash->rand = RandomSeed(93847636);
+    splash->rand = RandomSeed(input->ticks);
     for(u8 i = 0; i < 8; i++) {
         u8 mid_skipped = i;
         if(i > 3){
