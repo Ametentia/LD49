@@ -272,11 +272,11 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
         player->dp.x *= (1.0f / (1 + (PLAYER_DAMPING * dt)));
         player->current_animation = Player_Idle;
     }
-
     if ((input->time - player->last_jump_time) <= PLAYER_JUMP_BUFFER_TIME) {
         if (on_ground || (input->time - player->last_on_ground_time) <= PLAYER_COYOTE_TIME) {
             player->dp.y   = -Sqrt(2 * gravity * PLAYER_MAX_JUMP_HEIGHT);
             player->flags &= ~Player_OnGround;
+            player->last_jump_time = 0;
         }
     }
 
@@ -317,22 +317,22 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
     //
     rect2 drill_r;
     v2 drill_pos = player->p + V2(0.08 * player->x_scale, 0.04);
-    v2 drill_dim = V2(player->x_scale * 0.3, 0.1);
+    v2 drill_dim = V2(0.3, 0.1);
     drill_r.min = drill_pos - (0.5f * drill_dim);
-    drill_r.min = drill_pos + (0.5f * drill_dim);
+    drill_r.max = drill_pos + (0.5f * drill_dim);
 
     Tile *collision_tiles[9] = {};
     u32 tile_count = GetCloseTiles(player->p, play->tiles, collision_tiles);
-
     player->flags &= ~Player_OnGround;
+
     v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
 
-    if(player->flags &= Player_Drilling) {
+    if(player->flags & Player_Drilling) {
         for (u32 it = 0; it < tile_count; ++it) {
             Tile *tile = collision_tiles[it];
             if (tile->type == Tile_Air) { continue; }
 
-            v2 tile_p = V2(tile->grid_p) * WORLD_TILE_SIZE;
+            v2 tile_p = V2(tile->grid_p) * tile_dim;
 
             rect2 tile_r;
             tile_r.min = tile_p - (0.5f * tile_dim);
@@ -341,7 +341,6 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
                 f32 x_over = Min(drill_r.max.x, tile_r.max.x) - Max(drill_r.min.x, tile_r.min.x);
                 if(x_over > 0) {
                     tile->type = Tile_Air;
-                    printf("Death comes to you\n");
                 }
             }
         }
@@ -390,5 +389,4 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
             }
         }
     }
-
 }
