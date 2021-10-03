@@ -45,6 +45,11 @@ enum Player_Flags {
     Player_OnGround = (1 << 0)
 };
 
+enum Player_Animation {
+    Player_Idle = 0,
+    Player_Run
+};
+
 struct Bird_Follower {
     b32 alive;
 
@@ -67,7 +72,8 @@ struct Player {
 
     v2 p;
     v2 dp;
-    Sprite_Animation animation;
+    Sprite_Animation animations[2];
+    Player_Animation current_animation;
     Bird_Follower birds[3];
 
     f32 x_scale;
@@ -78,6 +84,7 @@ struct Tile {
     v2 p;
     v2 dim;
     Image_Handle asset;
+    u8 alive;
 };
 
 struct Mode_Play {
