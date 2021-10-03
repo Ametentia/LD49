@@ -7,8 +7,8 @@
 
 // In elementary units
 //
-#define WORLD_X_SIZE (50)
-#define WORLD_Y_SIZE (50)
+#define WORLD_X_SIZE (100)
+#define WORLD_Y_SIZE (100)
 
 // In "world units"
 //
@@ -20,7 +20,7 @@
 //
 #define PLAYER_JUMP_APEX_TIME   (0.5f)
 #define PLAYER_JUMP_BUFFER_TIME (0.2f)
-#define PLAYER_COYOTE_TIME      (0.1f)
+#define PLAYER_COYOTE_TIME      (0.2f)
 
 // Slow down due to "friction"
 //
