@@ -29,7 +29,7 @@ function void SimGeneration(Tile *tiles, u8 generations) {
                     } else {
                         tile->type = Tile_Air;
                     }
-                } else if(count > 4){
+                } else if(count > 5){
                     tile->type = Tile_Ground;
                 } else {
                     tile->type = Tile_Air;
@@ -45,7 +45,7 @@ function void SpawnPopulation(Tile *tiles, Random *random) {
             Tile *tile = &tiles[(j * WORLD_Y_SIZE) + i];
             tile->grid_p = V2U(i, j);
             tile->type = Tile_Air;
-            if(RandomU32(random, 0, 9) > 5) {
+            if(RandomU32(random, 0, 9) > 4) {
                 tile->type = Tile_Ground;
             }
             if(i < 2 || i > WORLD_X_SIZE-2 || j<2 || j>WORLD_Y_SIZE-2) {
