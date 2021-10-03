@@ -24,8 +24,8 @@ function void ModePlay(Game_State *state, Random random) {
     Image_Handle idle_handle = GetImageByName(&state->assets, "idle");
     Initialise(&(player->animations[Player_Idle]), idle_handle, 1, 6, 1.0/24.0);
 
-    Image_Handle run_handle = GetImageByName(&state->assets, "Walking_sheet");
-    Initialise(&(player->animations[Player_Run]), run_handle, 1, 20, 1.0/64.0);
+    Image_Handle run_handle = GetImageByName(&state->assets, "running");
+    Initialise(&(player->animations[Player_Run]), run_handle, 1, 9, 1.0/24.0);
 
     player->birds[0].image  = GetImageByName(&state->assets, "bird_green");
     player->birds[0].cp     = 50;
@@ -37,12 +37,17 @@ function void ModePlay(Game_State *state, Random random) {
     player->birds[1].vp     = 12;
     player->birds[1].offset = V2(0, -0.18);
 
-    player->birds[2].image = GetImageByName(&state->assets, "bird_red");
-    player->birds[2].cp    = 40;
-    player->birds[2].vp    = 30;
+    player->birds[2].image  = GetImageByName(&state->assets, "bird_red");
+    player->birds[2].cp     = 40;
+    player->birds[2].vp     = 30;
     player->birds[2].offset = V2(0.08, 0);
 
-    player->dim = V2(0.5, 0.5);
+    player->dim           = V2(0.3, 0.3);
+
+    player->visual_dim    = V2(0.5, 0.5);
+    player->visual_offset = V2(0, -0.1);
+
+    play->debug_camera_p  = V2(0, 0);
 
     play->tiles = AllocArray(play->arena, Tile, (WORLD_X_SIZE * WORLD_Y_SIZE));
     SpawnPopulation(play->tiles, &random);
@@ -71,6 +76,16 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         SimGeneration(tiles, 1);
     }
 
+    if (JustPressed(input->keys[Key_F2])) {
+        play->debug_camera_enabled = !play->debug_camera_enabled;
+    }
+
+    if (IsPressed(input->keys[Key_Alt])) {
+        if (IsPressed(input->mouse_buttons[Mouse_Left])) {
+            play->debug_camera_p += input->mouse_delta.xy;
+        }
+    }
+
     // @Debug: Showing player movement over time
     //
     play->last_p[play->next_last_p] = player->p;
@@ -86,7 +101,12 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     play->camera_p  += (0.5f * ddp * dt * dt) + (play->camera_dp * dt);
     play->camera_dp += (ddp * dt);
 
-    SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 40));
+    if (play->debug_camera_enabled) {
+        SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->debug_camera_p, 8));
+    }
+    else {
+        SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 8));
+    }
 
     DrawClear(batch, V4(0.01f, 0.01f, 0.01f, 1.0f));
 
@@ -117,10 +137,11 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         DrawQuad(batch, { 0 }, play->last_p[it], V2(0.05, 0.05), 0, V4(0, 1, 0, 1));
     }
 
-    f32 offset = 1.2;
-    DrawAnimation(batch, &player->animations[player->current_animation], player->p - V2(0, 0.03),
-            V2(offset * player->x_scale, offset) * player->dim, 0, V4(1,1,1,1));
+    DrawAnimation(batch, &player->animations[player->current_animation], player->p + player->visual_offset,
+            V2(player->x_scale, 1) * player->visual_dim);
 
+
+    DrawQuadOutline(batch, player->p, player->dim, 0, V4(1, 0, 0, 1), 0.01);
 #if 0
     else if (Dot(player_bird_dir, V2(1, 0)) < 0) {
         x_scale = -1;
@@ -310,48 +331,13 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
 
                 if (sign < 0) {
                     player->flags |= Player_OnGround;
-                    player->dp.y   = 0;
-                }
-            }
-        }
-    }
-
-#if 0
-    Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
-    for(int i = 0; i < WORLD_X_SIZE; i++) {
-        for(int j = 0; j < WORLD_Y_SIZE; j++) {
-            Tile t = tiles[i][j];
-
-            v2 tile_p = t.p; //V2(i, j) * t.dim;
-
-            rect2 tile_r;
-            tile_r.min = tile_p - (0.5f * t.dim);
-            tile_r.max = tile_p + (0.5f * t.dim);
-
-            if (Overlaps(player_r, tile_r)) {
-                v2 overlap;
-
-                overlap.x = Min(player_r.max.x, tile_r.max.x) - Max(player_r.min.x, tile_r.min.x);
-                overlap.y = Min(player_r.max.y, tile_r.max.y) - Max(player_r.min.y, tile_r.min.y);
-
-                v2 dir = (player->p - tile_p);
-
-                if (overlap.x <= overlap.y) {
-                    f32 sign = Sign(dir.x);
-                    player->p.x += (overlap.x * sign);
+                    player->dp.y = 0;
                 }
                 else {
-                    f32 sign = Sign(dir.y);
-                    player->p.y += (overlap.y * sign);
-
-                    if (sign < 0) {
-                        player->flags |= Player_OnGround;
-                        player->dp.y   = 0;
-                    }
+                    player->dp.y = 0;
+                    player->dp.y += (ddp.y * dt);
                 }
             }
         }
     }
-#endif
-
 }

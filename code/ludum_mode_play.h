@@ -78,6 +78,8 @@ struct Player {
 
     f32 x_scale;
     v2 dim;
+    v2 visual_dim;
+    v2 visual_offset;
 };
 
 enum Tile_Type {
@@ -107,6 +109,9 @@ struct Mode_Play {
     //
     v2 camera_p;
     v2 camera_dp;
+
+    b32 debug_camera_enabled;
+    v2 debug_camera_p;
 
     // World data
     //
