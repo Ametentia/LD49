@@ -18,7 +18,7 @@ function void ModePlay(Game_State *state, Random random) {
 
     player->p   = V2(5, 5);
     player->dp  = V2(0, 0);
-    player->time_off_ground = 0;
+
     player->current_animation = Player_Idle;
 
     Image_Handle idle_handle = GetImageByName(&state->assets, "idle");
@@ -47,7 +47,7 @@ function void ModePlay(Game_State *state, Random random) {
     player->visual_dim    = V2(0.5, 0.5);
     player->visual_offset = V2(0, -0.1);
 
-    play->debug_camera_p  = V2(0, 0);
+    play->debug_camera_p  = V3(0, 0, 5);
 
     play->tiles = AllocArray(play->arena, Tile, (WORLD_X_SIZE * WORLD_Y_SIZE));
     SpawnPopulation(play->tiles, &random);
@@ -80,9 +80,13 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
 
     if (IsPressed(input->keys[Key_Alt])) {
         if (IsPressed(input->mouse_buttons[Mouse_Left])) {
-            play->debug_camera_p += input->mouse_delta.xy;
+            f32 speed_scale = (play->debug_camera_p.z / 5.0f);
+            play->debug_camera_p.xy += speed_scale * V2(-input->mouse_delta.x, input->mouse_delta.y);
         }
     }
+
+    play->debug_camera_p.z -= input->mouse_delta.z;
+    play->debug_camera_p.z = Clamp(play->debug_camera_p.z, 4, 150);
 
     // @Debug: Showing player movement over time
     //
@@ -100,10 +104,11 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     play->camera_dp += (ddp * dt);
 
     if (play->debug_camera_enabled) {
-        SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->debug_camera_p, 8));
+        SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), play->debug_camera_p);
     }
     else if (IsPressed(input->keys[Key_P])) {
         SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 150));
+    }
     else {
         SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 8));
     }
@@ -240,6 +245,7 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
         player->current_animation = Player_Run;
         player->x_scale = -1;
     }
+
     // Move right
     //
     if (IsPressed(input->keys[Key_D])) {
@@ -257,18 +263,12 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
         player->current_animation = Player_Idle;
     }
 
-    if (player->time_off_ground < PLAYER_COYOTE_TIME) {
-        if ((input->time - player->last_jump_time) <= PLAYER_JUMP_BUFFER_TIME && on_ground) {
+    if ((input->time - player->last_jump_time) <= PLAYER_JUMP_BUFFER_TIME) {
+        if (on_ground || (input->time - player->last_on_ground_time) <= PLAYER_COYOTE_TIME) {
             player->dp.y   = -Sqrt(2 * gravity * PLAYER_MAX_JUMP_HEIGHT);
             player->flags &= ~Player_OnGround;
-            player->time_off_ground = 0;
         }
     }
-
-    if (!on_ground) {
-        player->time_off_ground += dt;
-    }
-    printf("%f\n", player->time_off_ground);
 
     if (!IsPressed(input->keys[Key_K]) && (player->dp.y < 0)) {
         f32 initial_dp_sq = (2 * gravity * PLAYER_MAX_JUMP_HEIGHT);
@@ -297,6 +297,8 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
 
     Tile *collision_tiles[9] = {};
     u32 tile_count = GetCloseTiles(player->p, play->tiles, collision_tiles);
+
+    player->flags &= ~Player_OnGround;
 
     v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
     for (u32 it = 0; it < tile_count; ++it) {
@@ -332,14 +334,15 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
                 if (sign < 0) {
                     player->flags |= Player_OnGround;
                     player->dp.y = 0;
+
+                    player->last_on_ground_time = input->time;
                 }
                 else {
                     player->dp.y = 0;
                     player->dp.y += (ddp.y * dt);
-
-                    player->time_off_ground = 0;
                 }
             }
         }
     }
+
 }

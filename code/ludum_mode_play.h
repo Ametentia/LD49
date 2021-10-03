@@ -68,7 +68,7 @@ struct Bird_Follower {
 struct Player {
     u32 flags;
     f32 last_jump_time;
-    f32 time_off_ground;
+    f32 last_on_ground_time;
 
     v2 p;
     v2 dp;
@@ -111,7 +111,7 @@ struct Mode_Play {
     v2 camera_dp;
 
     b32 debug_camera_enabled;
-    v2 debug_camera_p;
+    v3 debug_camera_p;
 
     // World data
     //
