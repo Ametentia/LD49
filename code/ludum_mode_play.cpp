@@ -16,7 +16,7 @@ function void ModePlay(Game_State *state, Random random) {
 
     player->x_scale = 1;
 
-    player->p   = V2(0.6, 0.6);
+    player->p   = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
     player->dp  = V2(0, 0);
     player->time_off_ground = 0;
     player->current_animation = Player_Idle;
@@ -44,16 +44,9 @@ function void ModePlay(Game_State *state, Random random) {
 
     player->dim = V2(0.5, 0.5);
 
-    // Setup World
-    Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
-    SpawnPopulation(tiles, &random);
-    SimGeneration(tiles, 5);
-    for(int i = 0; i < WORLD_X_SIZE; i++){
-        for(int j = 0; j < WORLD_Y_SIZE; j++){
-            tiles[i][j].p = V2(i*WORLD_TILE_SIZE, j*WORLD_TILE_SIZE);
-            tiles[i][j].dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
-        }
-    }
+    play->tiles = AllocArray(play->arena, Tile, (WORLD_X_SIZE * WORLD_Y_SIZE));
+    SpawnPopulation(play->tiles, &random);
+    SimGeneration(play->tiles, 5);
 
     state->mode = GameMode_Play;
     state->play = play;
@@ -68,11 +61,14 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     Initialise(batch, &state->assets, renderer_buffer);
 
     Player *player = &play->player;
-    UpdatePlayer(player, input, play, batch);
-    Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
+    Tile *tiles = play->tiles;
+    // @Debug: regen world
+    //
+    if(JustPressed(input->keys[Key_O])) {
+        SpawnPopulation(play->tiles, &(play->random));
+    }
     if(JustPressed(input->keys[Key_L])) {
-        SpawnPopulation(tiles, &(play->random));
-        SimGeneration(tiles, 10);
+        SimGeneration(tiles, 1);
     }
 
     // @Debug: Showing player movement over time
@@ -90,25 +86,29 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     play->camera_p  += (0.5f * ddp * dt * dt) + (play->camera_dp * dt);
     play->camera_dp += (ddp * dt);
 
-    SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 180));
+    SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 40));
 
     DrawClear(batch, V4(0.01f, 0.01f, 0.01f, 1.0f));
 
-    // Draw World tiles
-    Image_Handle tile_sprite = GetImageByName(&state->assets, "ground_01");
-    for(int i = 0; i < WORLD_X_SIZE; i++){
-        for(int j = 0; j < WORLD_Y_SIZE; j++){
-            Tile t = tiles[i][j];
-            if(t.alive) {
-                DrawQuad(batch, tile_sprite, t.p, V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE), 0, V4(1,1,1,1));
-            }
-            int x_right = t.p.x + t.dim.x/2.0 > player->p.x - player->dim.x/2.0;
-            int x_left = t.p.x - t.dim.x/2.0 < player->p.x + player->dim.x/2.0;
-            int y_up = t.p.y + t.dim.y/2.0 > player->p.y - player->dim.y/2.0;
-            int y_down = t.p.y - t.dim.y/2.0 < player->p.y + player->dim.y/2.0;
-            if(x_right && x_left && y_up && y_down && t.alive) {
-                DrawQuad(batch, tile_sprite, t.p, V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE), 0, V4(1,0,0,1));
-            }
+    UpdatePlayer(play, player, input);
+
+    // @Debug: Showing player movement over time
+    //
+    play->last_p[play->next_last_p] = player->p;
+    play->count += 1;
+    play->next_last_p += 1;
+    play->next_last_p %= ArraySize(play->last_p);
+
+    Image_Handle ground_image = GetImageByName(&state->assets, "ground_01");
+    v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
+
+    for (u32 y = 0; y < WORLD_Y_SIZE; ++y) {
+        for (u32 x = 0; x < WORLD_X_SIZE; ++x) {
+            Tile *tile = &play->tiles[(y * WORLD_Y_SIZE) + x];
+            if (tile->type == Tile_Air) { continue; }
+
+            v2 world_p = V2(tile->grid_p) * tile_dim;
+            DrawQuad(batch, ground_image, world_p, tile_dim);
         }
     }
 
@@ -117,14 +117,9 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         DrawQuad(batch, { 0 }, play->last_p[it], V2(0.05, 0.05), 0, V4(0, 1, 0, 1));
     }
 
-    DrawAnimation(
-        batch,
-        &(player->animations[player->current_animation]),
-        player->p,
-        V2(player->x_scale, 1) * player->dim,
-        0,
-        V4(1,1,1,1)
-    );
+    f32 offset = 1.2;
+    DrawAnimation(batch, &player->animations[player->current_animation], player->p - V2(0, 0.03),
+            V2(offset * player->x_scale, offset) * player->dim, 0, V4(1,1,1,1));
 
 #if 0
     else if (Dot(player_bird_dir, V2(1, 0)) < 0) {
@@ -156,7 +151,49 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     }
 }
 
-function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_Batch *batch) {
+function b32 Overlaps(rect2 a, rect2 b) {
+    b32 result =
+        (a.max.x >= b.min.x) && (a.min.x <= b.max.x) &&
+        (a.max.y >= b.min.y) && (a.min.y <= b.max.y);
+
+    return result;
+}
+
+function f32 Sign(f32 x) {
+    f32 result = (x < 0) ? -1 : 1;
+    return result;
+}
+
+function b32 IsValidTile(v2s tile_p) {
+    b32 result =
+        (tile_p.x >= 0) && (tile_p.x < WORLD_X_SIZE) &&
+        (tile_p.y >= 0) && (tile_p.y < WORLD_Y_SIZE);
+
+    return result;
+}
+
+function u32 GetCloseTiles(v2 p, Tile *tiles, Tile **out) {
+    u32 result = 0;
+
+    v2s p_grid;
+    p_grid.x = cast(s32) ((p.x / WORLD_TILE_SIZE) + 0.5f);
+    p_grid.y = cast(s32) ((p.y / WORLD_TILE_SIZE) + 0.5f);
+
+    for (s32 y = -1; y <= 1; ++y) {
+        for (s32 x = -1; x <= 1; ++x) {
+            v2s tile_p = V2S(p_grid.x + x, p_grid.y + y);
+
+            if (IsValidTile(tile_p)) {
+                out[result] = &tiles[(tile_p.y * WORLD_Y_SIZE) + tile_p.x];
+                result += 1;
+            }
+        }
+    }
+
+    return result;
+}
+
+function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
     f32 dt = input->delta_time;
 
     b32 on_ground = (player->flags & Player_OnGround);
@@ -170,6 +207,7 @@ function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_B
     if (JustPressed(input->keys[Key_K])) {
         player->last_jump_time = input->time;
     }
+
     UpdateAnimation(&(player->animations[player->current_animation]), dt);
 
     // Move left
@@ -204,8 +242,9 @@ function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_B
             player->flags &= ~Player_OnGround;
             player->time_off_ground = 0;
         }
-    } 
-    if(!on_ground){
+    }
+
+    if (!on_ground) {
         player->time_off_ground += dt;
     }
 
@@ -228,22 +267,91 @@ function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_B
         player->dp.x *= (PLAYER_MAX_SPEED_X / Abs(player->dp.x));
     }
 
-    Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
-    for(int i = 0; i < WORLD_X_SIZE; i++){
-        for(int j = 0; j < WORLD_Y_SIZE; j++){
-            Tile t = tiles[i][j];
-            if(!t.alive) {
-                continue;
+    // Calculate the player collision box
+    //
+    rect2 player_r;
+    player_r.min = player->p - (0.5f * player->dim);
+    player_r.max = player->p + (0.5f * player->dim);
+
+    Tile *collision_tiles[9] = {};
+    u32 tile_count = GetCloseTiles(player->p, play->tiles, collision_tiles);
+
+    v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
+
+    for (u32 it = 0; it < tile_count; ++it) {
+        Tile *tile = collision_tiles[it];
+        if (tile->type == Tile_Air) { continue; }
+
+        v2 tile_p = V2(tile->grid_p) * tile_dim;
+
+        rect2 tile_r;
+        tile_r.min = tile_p - (0.5f * tile_dim);
+        tile_r.max = tile_p + (0.5f * tile_dim);
+
+        if (Overlaps(player_r, tile_r)) {
+            v2 overlap;
+
+            overlap.x = Min(player_r.max.x, tile_r.max.x) - Max(player_r.min.x, tile_r.min.x);
+            overlap.y = Min(player_r.max.y, tile_r.max.y) - Max(player_r.min.y, tile_r.min.y);
+
+            v2 dir = (player->p - tile_p);
+
+            if (overlap.x <= overlap.y) {
+                if (overlap.x > 0) {
+                    f32 sign = Sign(dir.x);
+                    player->p.x += (overlap.x * sign);
+
+                    player->dp.x = 0;
+                }
             }
-            int x_right = t.p.x + t.dim.x/2.0 > player->p.x - player->dim.x/2.0;
-            int x_left = t.p.x - t.dim.x/2.0 < player->p.x + player->dim.x/2.0;
-            int y_up = t.p.y + t.dim.y/2.0 > player->p.y - player->dim.y/2.0;
-            int y_down = t.p.y - t.dim.y/2.0 < player->p.y + player->dim.y/2.0;
-            if(x_right && x_left && y_up && y_down) {
-                player->p.y = t.p.y - player->dim.y/2;
-                player->flags |= Player_OnGround;
-                player->dp.y = 0;
-            } 
+            else {
+                f32 sign = Sign(dir.y);
+                player->p.y += (overlap.y * sign);
+
+                if (sign < 0) {
+                    player->flags |= Player_OnGround;
+                    player->dp.y   = 0;
+                }
+            }
         }
     }
+
+#if 0
+    Tile (*tiles)[WORLD_Y_SIZE] = play->tiles;
+    for(int i = 0; i < WORLD_X_SIZE; i++) {
+        for(int j = 0; j < WORLD_Y_SIZE; j++) {
+            Tile t = tiles[i][j];
+
+            v2 tile_p = t.p; //V2(i, j) * t.dim;
+
+            rect2 tile_r;
+            tile_r.min = tile_p - (0.5f * t.dim);
+            tile_r.max = tile_p + (0.5f * t.dim);
+
+            if (Overlaps(player_r, tile_r)) {
+                v2 overlap;
+
+                overlap.x = Min(player_r.max.x, tile_r.max.x) - Max(player_r.min.x, tile_r.min.x);
+                overlap.y = Min(player_r.max.y, tile_r.max.y) - Max(player_r.min.y, tile_r.min.y);
+
+                v2 dir = (player->p - tile_p);
+
+                if (overlap.x <= overlap.y) {
+                    f32 sign = Sign(dir.x);
+                    player->p.x += (overlap.x * sign);
+                }
+                else {
+                    f32 sign = Sign(dir.y);
+                    player->p.y += (overlap.y * sign);
+
+                    if (sign < 0) {
+                        player->flags |= Player_OnGround;
+                        player->dp.y   = 0;
+                    }
+                }
+            }
+        }
+    }
+#endif
+
 }
