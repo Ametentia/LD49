@@ -16,7 +16,9 @@ function void ModePlay(Game_State *state, Random random) {
 
     player->x_scale = 1;
 
-    player->p   = V2(5, 5);
+    player->p = V2(WORLD_TILE_SIZE*4, (WORLD_Y_SIZE - 3)*WORLD_TILE_SIZE);
+    play->camera_p = V2(WORLD_TILE_SIZE*4, (WORLD_Y_SIZE - 3)*WORLD_TILE_SIZE);
+    play->camera_dp = V2(0, 0);
     player->dp  = V2(0, 0);
 
     player->current_animation = Player_Idle;
@@ -69,9 +71,12 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     Tile *tiles = play->tiles;
     // @Debug: regen world
     //
-    if(JustPressed(input->keys[Key_L])) {
+    if(JustPressed(input->keys[Key_F3])) {
         SpawnPopulation(play->tiles, &(play->random));
         SimGeneration(tiles, 15);
+        player->p = V2(WORLD_TILE_SIZE*4, (WORLD_Y_SIZE - 3)*WORLD_TILE_SIZE);
+        play->camera_p = V2(WORLD_TILE_SIZE*4, (WORLD_Y_SIZE - 3)*WORLD_TILE_SIZE);
+        play->camera_dp = V2(0, 0);
     }
 
     if (JustPressed(input->keys[Key_F2])) {
@@ -110,7 +115,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 150));
     }
     else {
-        SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 8));
+        SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(play->camera_p, 10));
     }
 
     DrawClear(batch, V4(0.01f, 0.01f, 0.01f, 1.0f));
@@ -146,6 +151,11 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
             V2(player->x_scale, 1) * player->visual_dim);
 
     DrawQuadOutline(batch, player->p, player->dim, 0, V4(1, 0, 0, 1), 0.01);
+    if (player->flags &= Player_Drilling) {
+        Image_Handle drill = GetImageByName(&state->assets, "drill");
+        v2 drill_pos = player->p + V2(0.08 * player->x_scale, 0.04);
+        DrawQuad(batch, drill, drill_pos, V2(0.3 *player->x_scale, 0.1), 0, V4(1, 1, 1, 1));
+    }
 
 #if 0
     else if (Dot(player_bird_dir, V2(1, 0)) < 0) {
@@ -173,7 +183,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
             bird->dir_timer = RandomF32(&play->random, 1, 3);
         }
 
-        //DrawQuad(batch, bird->image, bird->p, V2(0.3 * bird->x_scale, 0.3)*0.4);
+        DrawQuad(batch, bird->image, bird->p, V2(0.3 * bird->x_scale, 0.3)*0.4);
     }
 }
 
@@ -289,18 +299,54 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
         player->dp.x *= (PLAYER_MAX_SPEED_X / Abs(player->dp.x));
     }
 
+    // Drill
+    //
+    if(IsPressed(input->keys[Key_L])) {
+        player->flags |= Player_Drilling;
+    } else {
+        player->flags &= ~Player_Drilling;
+    }
+
     // Calculate the player collision box
     //
     rect2 player_r;
     player_r.min = player->p - (0.5f * player->dim);
     player_r.max = player->p + (0.5f * player->dim);
 
+    // Calculate the drill collision box
+    //
+    rect2 drill_r;
+    v2 drill_pos = player->p + V2(0.08 * player->x_scale, 0.04);
+    v2 drill_dim = V2(player->x_scale * 0.3, 0.1);
+    drill_r.min = drill_pos - (0.5f * drill_dim);
+    drill_r.min = drill_pos + (0.5f * drill_dim);
+
     Tile *collision_tiles[9] = {};
     u32 tile_count = GetCloseTiles(player->p, play->tiles, collision_tiles);
 
     player->flags &= ~Player_OnGround;
-
     v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
+
+    if(player->flags &= Player_Drilling) {
+        for (u32 it = 0; it < tile_count; ++it) {
+            Tile *tile = collision_tiles[it];
+            if (tile->type == Tile_Air) { continue; }
+
+            v2 tile_p = V2(tile->grid_p) * WORLD_TILE_SIZE;
+
+            rect2 tile_r;
+            tile_r.min = tile_p - (0.5f * tile_dim);
+            tile_r.max = tile_p + (0.5f * tile_dim);
+            if (Overlaps(drill_r, tile_r)) {
+                f32 x_over = Min(drill_r.max.x, tile_r.max.x) - Max(drill_r.min.x, tile_r.min.x);
+                if(x_over > 0) {
+                    tile->type = Tile_Air;
+                    printf("Death comes to you\n");
+                }
+            }
+        }
+    }
+
     for (u32 it = 0; it < tile_count; ++it) {
         Tile *tile = collision_tiles[it];
         if (tile->type == Tile_Air) { continue; }

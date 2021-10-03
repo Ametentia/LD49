@@ -48,7 +48,10 @@ function void SpawnPopulation(Tile *tiles, Random *random) {
             if(RandomU32(random, 0, 9) > 4) {
                 tile->type = Tile_Ground;
             }
-            if(i < 2 || i > WORLD_X_SIZE-2 || j<2 || j>WORLD_Y_SIZE-2) {
+            if((i < 14 && j > WORLD_Y_SIZE - 14) || (j < 14 && i > WORLD_X_SIZE - 14)) {
+                tile->type = Tile_Air;
+            }
+            if(i < 3 || i > WORLD_X_SIZE-3 || j<3 || j>WORLD_Y_SIZE-3) {
                 tile->type = Tile_Ground;    
             }
         }

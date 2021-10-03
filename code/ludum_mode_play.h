@@ -42,7 +42,8 @@
 #define CAMERA_DAMPING   (12.0f)
 
 enum Player_Flags {
-    Player_OnGround = (1 << 0)
+    Player_OnGround = (1 << 0),
+    Player_Drilling = (1 << 1)
 };
 
 enum Player_Animation {
