@@ -12,7 +12,7 @@ function void LudumUpdateRender(Game_Context *context, Input *input, Renderer_Bu
         Initialise(&state->mode_arena, system_alloc, Gigabytes(1));
 
         Initialise(&state->audio_state, &state->perm_arena, V2(0.2f, 0.2f));
-        Initialise(&state->assets, &state->perm_arena, context->texture_queue);
+        Initialise(&state->assets, &state->perm_arena, context->texture_queue, TextureFlag_Clamped);
 
         context->state = state;
     }

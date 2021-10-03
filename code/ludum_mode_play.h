@@ -74,10 +74,14 @@ struct Player {
     v2 dim;
 };
 
+enum Tile_Type {
+    Tile_Air = 0,
+    Tile_Ground
+};
+
 struct Tile {
-    v2 p;
-    v2 dim;
-    Image_Handle asset;
+    Tile_Type type;
+    v2u grid_p;
 };
 
 struct Mode_Play {
@@ -100,12 +104,12 @@ struct Mode_Play {
 
     // World data
     //
-    Tile tiles[WORLD_X_SIZE][WORLD_Y_SIZE];
+    Tile *tiles;
 };
 
 function void ModePlay(Game_State *state, Random random);
 function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer);
 
-function void UpdatePlayer(Player *player, Input *input, Mode_Play *play, Draw_Batch *draw_batch);
+function void UpdatePlayer(Mode_Play *play, Player *player, Input *input);
 
 #endif  // LUDUM_MODE_PLAY_H_
