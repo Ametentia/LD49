@@ -21,6 +21,7 @@
 #define PLAYER_JUMP_APEX_TIME   (0.5f)
 #define PLAYER_JUMP_BUFFER_TIME (0.2f)
 #define PLAYER_COYOTE_TIME      (0.2f)
+#define TILE_DRILL_TIME         (0.75f)
 
 // Slow down due to "friction"
 //
@@ -30,6 +31,7 @@
 //
 #define PLAYER_MAX_SPEED_X (2.2f)
 #define PLAYER_MAX_SPEED_Y (4.3f)
+#define PLAYER_MAX_SPEED_X_DRILLING (1.1f)
 
 // Movement
 //
@@ -81,6 +83,8 @@ struct Player {
     v2 dim;
     v2 visual_dim;
     v2 visual_offset;
+    Playing_Sound drill_hit_sound;
+    u8 drill_hit_playing;
 };
 
 enum Tile_Type {
@@ -91,6 +95,7 @@ enum Tile_Type {
 struct Tile {
     Tile_Type type;
     v2u grid_p;
+    f32 drill_time;
 };
 
 struct Mode_Play {
@@ -122,6 +127,6 @@ struct Mode_Play {
 function void ModePlay(Game_State *state, Random random);
 function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer);
 
-function void UpdatePlayer(Mode_Play *play, Player *player, Input *input);
+function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_State *state);
 
 #endif  // LUDUM_MODE_PLAY_H_

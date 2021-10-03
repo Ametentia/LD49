@@ -44,7 +44,7 @@ function void ModePlay(Game_State *state, Random random) {
     player->birds[2].vp     = 30;
     player->birds[2].offset = V2(0.08, 0);
 
-    player->dim           = V2(0.3, 0.3);
+    player->dim           = V2(0.15, 0.3);
 
     player->visual_dim    = V2(0.5, 0.5);
     player->visual_offset = V2(0, -0.1);
@@ -120,7 +120,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
 
     DrawClear(batch, V4(0.01f, 0.01f, 0.01f, 1.0f));
 
-    UpdatePlayer(play, player, input);
+    UpdatePlayer(play, player, input, state);
 
     // @Debug: Showing player movement over time
     //
@@ -151,7 +151,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
             V2(player->x_scale, 1) * player->visual_dim);
 
     DrawQuadOutline(batch, player->p, player->dim, 0, V4(1, 0, 0, 1), 0.01);
-    if (player->flags &= Player_Drilling) {
+    if(player->flags & Player_Drilling) {
         Image_Handle drill = GetImageByName(&state->assets, "drill");
         v2 drill_pos = player->p + V2(0.08 * player->x_scale, 0.04);
         DrawQuad(batch, drill, drill_pos, V2(0.3 *player->x_scale, 0.1), 0, V4(1, 1, 1, 1));
@@ -229,7 +229,7 @@ function u32 GetCloseTiles(v2 p, Tile *tiles, Tile **out) {
     return result;
 }
 
-function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
+function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_State *state) {
     f32 dt = input->delta_time;
 
     b32 on_ground = (player->flags & Player_OnGround);
@@ -295,16 +295,22 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
 
     // Limit x speed
     //
-    if (Abs(player->dp.x) > PLAYER_MAX_SPEED_X) {
-        player->dp.x *= (PLAYER_MAX_SPEED_X / Abs(player->dp.x));
+    //f32 max_speed = (player->flags & Player_Drilling) ? PLAYER_MAX_SPEED_X_DRILLING : PLAYER_MAX_SPEED_X;
+    f32 max_speed = PLAYER_MAX_SPEED_X;
+    if (Abs(player->dp.x) > max_speed) {
+        player->dp.x *= (max_speed / Abs(player->dp.x));
     }
 
     // Drill
     //
-    if(IsPressed(input->keys[Key_L])) {
+    if(IsPressed(input->keys[Key_L]) && on_ground) {
+        if(!(player->flags & Player_Drilling)) {
+            // TODO Drill noise
+        }
         player->flags |= Player_Drilling;
-    } else {
+    } else if(player->flags & Player_Drilling){
         player->flags &= ~Player_Drilling;
+        // TODO stop Drill noise
     }
 
     // Calculate the player collision box
@@ -316,8 +322,8 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
     // Calculate the drill collision box
     //
     rect2 drill_r;
-    v2 drill_pos = player->p + V2(0.08 * player->x_scale, 0.04);
-    v2 drill_dim = V2(0.3, 0.1);
+    v2 drill_pos = player->p + V2(0.08 * player->x_scale, -0.15f);
+    v2 drill_dim = V2(0.3, 0.4);
     drill_r.min = drill_pos - (0.5f * drill_dim);
     drill_r.max = drill_pos + (0.5f * drill_dim);
 
@@ -326,7 +332,7 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
     player->flags &= ~Player_OnGround;
 
     v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
-
+    u8 hits = 0;
     if(player->flags & Player_Drilling) {
         for (u32 it = 0; it < tile_count; ++it) {
             Tile *tile = collision_tiles[it];
@@ -340,12 +346,27 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
             if (Overlaps(drill_r, tile_r)) {
                 f32 x_over = Min(drill_r.max.x, tile_r.max.x) - Max(drill_r.min.x, tile_r.min.x);
                 if(x_over > 0) {
-                    tile->type = Tile_Air;
+                    tile->drill_time += dt;
+                    if(tile->drill_time > TILE_DRILL_TIME) {
+                        tile->type = Tile_Air;
+                    } else {
+                        hits++;
+                        if(!player->drill_hit_playing) {
+                            Sound_Handle drill = GetSoundByName(&state->assets, "drillbrrr");
+                            player->drill_hit_sound = *PlaySound(&state->audio_state, drill, PlayingSound_Looped);
+                            player->drill_hit_playing = 1;
+                        }
+                    }
                 }
+            } else {
+                tile->drill_time = 0;
             }
         }
     }
-
+    if(hits == 0 && player->drill_hit_playing) {
+        StopSound(&state->audio_state, &player->drill_hit_sound);
+        player->drill_hit_playing = 0;
+    }
     for (u32 it = 0; it < tile_count; ++it) {
         Tile *tile = collision_tiles[it];
         if (tile->type == Tile_Air) { continue; }
@@ -388,5 +409,5 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
                 }
             }
         }
-    }
+    } 
 }
