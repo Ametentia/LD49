@@ -88,8 +88,10 @@ struct Player {
 };
 
 enum Tile_Type {
-    Tile_Air = 0,
-    Tile_Ground
+    Tile_Air = -3,
+    Tile_Exit,
+    Tile_Entrance,
+    Tile_Ground,
 };
 
 struct Tile {

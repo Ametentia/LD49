@@ -136,6 +136,16 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         for (u32 x = 0; x < WORLD_X_SIZE; ++x) {
             Tile *tile = &play->tiles[(y * WORLD_Y_SIZE) + x];
             if (tile->type == Tile_Air) { continue; }
+            if (tile->type == Tile_Exit) { 
+                v2 world_p = V2(tile->grid_p) * tile_dim;
+                DrawQuad(batch, {0}, world_p, tile_dim,0, V4(0,1,0,1));
+                continue;
+            }
+            if (tile->type == Tile_Entrance) { 
+                v2 world_p = V2(tile->grid_p) * tile_dim;
+                DrawQuad(batch, {0}, world_p, tile_dim,0, V4(0,0,1,1));
+                continue;
+            }
 
             v2 world_p = V2(tile->grid_p) * tile_dim;
             DrawQuad(batch, ground_image, world_p, tile_dim);
@@ -336,7 +346,7 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
     if(player->flags & Player_Drilling) {
         for (u32 it = 0; it < tile_count; ++it) {
             Tile *tile = collision_tiles[it];
-            if (tile->type == Tile_Air) { continue; }
+            if (tile->type < 0) { continue; }
 
             v2 tile_p = V2(tile->grid_p) * tile_dim;
 
@@ -369,7 +379,7 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
     }
     for (u32 it = 0; it < tile_count; ++it) {
         Tile *tile = collision_tiles[it];
-        if (tile->type == Tile_Air) { continue; }
+        if (tile->type < 0) { continue; }
 
         v2 tile_p = V2(tile->grid_p) * tile_dim;
 
