@@ -4,13 +4,18 @@ function void ModeMiniGame(Game_State *state){
     state->mode = GameMode_MiniGame;
     Mode_MiniGame *minigame = AllocType(&state->mode_arena,Mode_MiniGame);
     state->play->minigame = minigame;
-    // DEBUG @DEC Change this to your game
-    minigame->type = MiniGame_IceSkating;
+    minigame->type = MiniGame_BinaryCount;
 
 
     switch(state->play->minigame->type) {
         case MiniGame_BinaryCount: {
-                
+                Random *random = &state->play->random;
+                minigame->binary.target = RandomU32(random, 1, 16);
+                Image_Handle walk_sheet = GetImageByName(&state->assets, "Walking_sheet");
+                Initialise(&minigame->binary.animation, walk_sheet, 1, 20, 1.0/32.0);
+                minigame->binary.x = 5;
+                minigame->binary.y = 2;
+                minigame->binary.x_dir = 1;
             }
             break;
         case MiniGame_IceSkating: {
@@ -49,8 +54,46 @@ function void UpdateRenderModeMiniGame(Game_State *state, Input *input, Renderer
 }
 
 function void UpdateRenderBinaryCount(Game_State *state, Input *input, Draw_Batch *batch) {
-    Mode_MiniGame *minigame = state->play->minigame;
-
+    f32 dt = input->delta_time;
+    MiniGameBinary *minigame = &state->play->minigame->binary;
+    f32 offset_x = -(0.3f*9)/2 ;
+    u32 changed_pos = 0;
+    if (JustPressed(input->keys[Key_D])) {
+        minigame->x += 1;
+        minigame->x_dir = 1.0;
+        changed_pos = 1;
+    }
+    if (JustPressed(input->keys[Key_A])) {
+        minigame->x -= 1;
+        minigame->x_dir = -1.0;
+        changed_pos = 1;
+    }
+    if (JustPressed(input->keys[Key_W])) {
+        minigame->y -= 1;
+        changed_pos = 1;
+    }
+    if (JustPressed(input->keys[Key_S])) {
+        minigame->y += 1;
+        changed_pos = 1;
+    }
+    for(u32 i = 0; i < 9; i++) {
+        for(u32 j = 0; j < 4; j++) {
+            v4 colour = V4(0.4f,0.4f,0.4f,1);
+            if(i%2 == 1 && j == 1) {
+                if(changed_pos && i==minigame->x && j==minigame->y) {
+                    minigame->setting ^= (8>>i/2);
+                }
+                u32 red_green = (minigame->setting & 8>>i/2) << i/2;
+                colour = V4(!red_green,red_green,0,1);
+            }
+            DrawQuad(batch, {0}, V2(0.15 + offset_x+i*0.3, (0.3*j) - 0.15), V2(0.3,0.3), 0, colour);
+        }
+    }
+    UpdateAnimation(&minigame->animation, dt);
+    DrawAnimation(batch, &minigame->animation, V2(0.15 + offset_x+(minigame->x*0.3), (0.3*minigame->y) - 0.15), V2(0.3*minigame->x_dir, 0.3), 0, V4(1,1,1,1));
+    if(minigame->setting == minigame->target) {
+        state->mode = GameMode_Play;
+    }
 }
 
 function void UpdateRenderIceSkating(Game_State *state, Input *input, Draw_Batch *batch) {

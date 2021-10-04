@@ -3,7 +3,7 @@
 
 enum MiniGameType {
     MiniGame_BinaryCount = 0,
-    MiniGame_IceSkating
+    MiniGame_IceSkating,
 };
 
 struct MiniGamePlayer{
@@ -39,7 +39,12 @@ struct MiniGameIceSkating {
 };
 
 struct MiniGameBinary{
-    u32 placeholder;
+    u32 target;
+    u32 setting;
+    u32 x;
+    u32 y;
+    f32 x_dir;
+    Sprite_Animation animation;
 };
 
 struct Mode_MiniGame{
