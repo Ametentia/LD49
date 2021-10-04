@@ -2,19 +2,27 @@
 #define LUDUM_MODE_MINIGAME_H_
 
 enum MiniGameType {
-    BinaryCount = 0,
-    IceSkating
+    MiniGame_BinaryCount = 0,
+    MiniGame_IceSkating
 };
 
 struct MiniGamePlayer{
     f32 x_scale;
     v2 pos;
+    u32 xOnGrid;
+    u32 yOnGrid;
     v2 dim;
     Sprite_Animation animation;
 };
 
+enum MiniGameTileType{
+    Nothing = -1,
+    Blocked = 0,
+    Open = 1
+};
+
 struct MiniGameTile{
-    u32 value;
+    MiniGameTileType type;
     Image_Handle asset;
     v2 p;
     v2 dim;
