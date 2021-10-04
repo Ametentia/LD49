@@ -115,7 +115,6 @@ function void UpdateRenderRockFall(Game_State *state, Input *input, Draw_Batch *
     }
     if(state->mode==GameMode_Play) {
         if(minigame->x != minigame->free_space && minigame->x != minigame->free_space2) {
-            printf("in mini %d\n", state->play->lives);
             state->play->lives = state->play->lives-1;
         }
     }

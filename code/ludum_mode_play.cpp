@@ -265,7 +265,6 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
 
     // Update and draw the follower birds
     //
-    printf("play %d\n", play->lives);
     for (u32 it = 0; it < Min(ArraySize(player->birds), play->lives); ++it) {
         Bird_Follower *bird = &player->birds[it];
 
