@@ -4,6 +4,7 @@
 enum MiniGameType {
     MiniGame_BinaryCount = 0,
     MiniGame_IceSkating,
+    MiniGame_RockFall
 };
 
 struct MiniGamePlayer{
@@ -47,11 +48,22 @@ struct MiniGameBinary{
     Sprite_Animation animation;
 };
 
+struct RockFall {
+    u32 x;
+    u32 free_space;
+    u32 free_space2;
+    f32 drop_time;
+    f32 time_passed;
+    Sprite_Animation animation;
+    f32 x_dir;
+};
+
 struct Mode_MiniGame{
     MiniGameType type;
     union {
         MiniGameIceSkating ice;
         MiniGameBinary binary;
+        RockFall rockFall;
     };
 };
 
@@ -61,4 +73,5 @@ function void BuildMap(Game_State *state);
 function void UpdateRenderModeMiniGame(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer);
 function void UpdateRenderIceSkating(Game_State *state, Input *input, Draw_Batch *batch);
 function void UpdateRenderBinaryCount(Game_State *state, Input *input, Draw_Batch *batch);
+function void UpdateRenderRockFall(Game_State *state, Input *input, Draw_Batch *batch);
 #endif  // LUDUM_MODE_MINIGAME_H_
