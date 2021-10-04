@@ -128,7 +128,10 @@ struct Tile {
     Tile_Type type;
     v2u grid_p;
     f32 drill_time;
+
+    v2 scale;
 };
+
 struct Mode_MiniGame;
 
 struct Particle {

@@ -140,6 +140,8 @@ function void SpawnEnemies(Mode_Play *play, Asset_Manager *assets) {
             enemy->dp      = V2(0, 0);
             enemy->x_scale = 1;
 
+            enemy->alive = true;
+
             p.x += 12;
         }
         else {
@@ -170,17 +172,34 @@ function void GenerateWorld(Mode_Play *play, Random *random, Asset_Manager *asse
             Tile *tile  = &play->tiles[(y * WORLD_Y_SIZE) + x];
             if (tile->type == Tile_Air) { continue; }
 
+            tile->scale = V2(1, 1);
+
             v2s tile_p  = V2S(x, y);
             v2s above_p = V2S(x, y - 1);
+            v2s below_p = V2S(x, y + 1);
 
             u32 index = NextRandom(random) % ArraySize(ground_tile_names);
             str8 name = ground_tile_names[index];
 
             if (IsValidTile(above_p)) {
                 Tile *above = &play->tiles[(above_p.y * WORLD_Y_SIZE) + above_p.x];
-                if (above->type != Tile_Air) {
+
+                if (IsValidTile(below_p)) {
+                    Tile *below = &play->tiles[(below_p.y * WORLD_Y_SIZE) + below_p.x];
+
+                    if (below->type == Tile_Air && above->type != Tile_Air) {
+                        tile->scale.y = -1;
+                    }
+                    else if (above->type != Tile_Air) {
+                        name = WrapConst("ground_02");
+                    }
+
+                    // if (above->type == Tile_Air && below->type == Tile_Air) { tile->scale.y = 1; }
+                }
+                else if (above->type != Tile_Air) {
                     name = WrapConst("ground_02");
                 }
+
             }
 
             tile->image = GetImageByName(assets, name);

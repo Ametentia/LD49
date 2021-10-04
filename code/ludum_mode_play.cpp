@@ -217,6 +217,12 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     play->next_last_p += 1;
     play->next_last_p %= ArraySize(play->last_p);
 
+    Image_Handle bg0 = GetImageByName(&state->assets, "background_02");
+    DrawQuad(batch, bg0, V3(0.5f * world_dim, -10), 1.85 * WORLD_X_SIZE * WORLD_TILE_SIZE);
+
+    Image_Handle bg1 = GetImageByName(&state->assets, "background_03");
+    DrawQuad(batch, bg1, V3(0.5f * world_dim, -5), 1.85 * WORLD_X_SIZE * WORLD_TILE_SIZE);
+
     // Draw World
     //
     v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
@@ -224,19 +230,20 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         for (u32 x = 0; x < WORLD_X_SIZE; ++x) {
             Tile *tile = &play->tiles[(y * WORLD_Y_SIZE) + x];
             if (tile->type == Tile_Air) { continue; }
+
             if (tile->type == Tile_Exit) {
                 v2 world_p = V2(tile->grid_p) * tile_dim;
                 DrawQuad(batch, {0}, world_p, tile_dim,0, V4(0,1,0,1));
                 continue;
             }
-            if (tile->type == Tile_Entrance) {
+            else if (tile->type == Tile_Entrance) {
                 v2 world_p = V2(tile->grid_p) * tile_dim;
                 DrawQuad(batch, {0}, world_p, tile_dim,0, V4(0,0,1,1));
                 continue;
             }
 
             v2 world_p = V2(tile->grid_p) * tile_dim;
-            DrawQuad(batch, tile->image, world_p, tile_dim);
+            DrawQuad(batch, tile->image, world_p, tile->scale * tile_dim);
         }
     }
 
@@ -289,6 +296,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     v2 enemy_dim = V2(0.5, 0.5);
     for (u32 it = 0; it < play->enemy_count; ++it) {
         Enemy *enemy = &play->enemies[it];
+        if (!enemy->alive) { continue; }
 
         UpdateEnemy(play, enemy, dt);
         DrawAnimation(batch, &enemy->anim, enemy->p - V2(0, 0.11f), V2(enemy->x_scale * enemy_dim.x, enemy_dim.y));
@@ -328,6 +336,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         //
         DrawQuad(batch, bird->image, bird->p, V2(0.3 * bird->x_scale, 0.3) * 0.4);
     }
+
     if (IsPressed(input->keys[Key_Enter])) {
         ModeMiniGame(state);
     }
