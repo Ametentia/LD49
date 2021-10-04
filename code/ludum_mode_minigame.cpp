@@ -5,8 +5,7 @@ function void ModeMiniGame(Game_State *state){
     Mode_MiniGame *minigame = AllocType(&state->mode_arena,Mode_MiniGame);
     state->play->minigame = minigame;
     Random *random = &state->play->random;
-    minigame->type = (MiniGameType)RandomU32(random, 0, 2);
-    minigame->type = MiniGame_RockFall;
+    minigame->type = (MiniGameType)RandomU32(random, 0, 3);
 
     switch(state->play->minigame->type) {
         case MiniGame_BinaryCount: {
@@ -77,7 +76,9 @@ function void UpdateRenderModeMiniGame(Game_State *state, Input *input, Renderer
 function void UpdateRenderRockFall(Game_State *state, Input *input, Draw_Batch *batch) {
     f32 dt = input->delta_time;
     RockFall *minigame = &state->play->minigame->rockFall;
-    Image_Handle back = GetImageByName(&state->assets, "background_01");
+    Image_Handle back = GetImageByName(&state->assets, "background_02");
+    DrawQuad(batch, back, V2(0,0), 8, 0, V4(1,1,1,1));
+    back = GetImageByName(&state->assets, "background_01");
     DrawQuad(batch, back, V2(0,0), 8, 0, V4(1,1,1,1));
     f32 offset_x = -(0.3f*5)/2 ;
     minigame->time_passed += dt;
@@ -120,7 +121,9 @@ function void UpdateRenderBinaryCount(Game_State *state, Input *input, Draw_Batc
     MiniGameBinary *minigame = &state->play->minigame->binary;
     f32 offset_x = -(0.3f*9)/2 ;
     u32 changed_pos = 0;
-    Image_Handle back = GetImageByName(&state->assets, "background_01");
+    Image_Handle back = GetImageByName(&state->assets, "background_02");
+    DrawQuad(batch, back, V2(0,0), 8, 0, V4(1,1,1,1));
+    back = GetImageByName(&state->assets, "background_01");
     DrawQuad(batch, back, V2(0,0), 8, 0, V4(1,1,1,1));
     if (JustPressed(input->keys[Key_D]) && minigame->x < 8) {
         minigame->x += 1;
@@ -232,8 +235,10 @@ function void UpdateRenderIceSkating(Game_State *state, Input *input, Draw_Batch
 
     MiniGamePlayer *player = &minigame->player;
     UpdateMGPlayer(player, input, minigame, state);
-
-    DrawQuad(batch, {0}, V2(0,0),V2(6.0,3.5), 0, V4(60/255.0, 5/255.0, 5/255.0,1.0));
+    Image_Handle back = GetImageByName(&state->assets, "background_02");
+    DrawQuad(batch, back, V2(0,0), 8, 0, V4(1,1,1,1));
+    back = GetImageByName(&state->assets, "background_01");
+    DrawQuad(batch, back, V2(0,0), 8, 0, V4(1,1,1,1));
 
     for(u32 i = 0; i < minigame->height*minigame->width; i++){
         DrawQuad(batch, minigame->tiles[i].asset, minigame->tiles[i].p, minigame->tiles[i].dim);
