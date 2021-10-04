@@ -3,15 +3,18 @@
 
 enum MiniGameType {
     MiniGame_BinaryCount = 0,
-    MiniGame_IceSkating
+    MiniGame_IceSkating,
+    MiniGame_RockFall
 };
 
 struct MiniGamePlayer{
-    f32 x_scale;
     v2 pos;
+    bool alive;
     u32 xOnGrid;
     u32 yOnGrid;
     v2 dim;
+    f32 rotation;
+    v2 scale;
     Sprite_Animation animation;
 };
 
@@ -30,6 +33,7 @@ struct MiniGameTile{
 };
 
 struct MiniGameIceSkating {
+    bool won;
     MiniGamePlayer player;
     MiniGameTile tiles[12];
     u32 widths[4];
@@ -39,7 +43,22 @@ struct MiniGameIceSkating {
 };
 
 struct MiniGameBinary{
-    u32 placeholder;
+    u32 target;
+    u32 setting;
+    u32 x;
+    u32 y;
+    f32 x_dir;
+    Sprite_Animation animation;
+};
+
+struct RockFall {
+    u32 x;
+    u32 free_space;
+    u32 free_space2;
+    f32 drop_time;
+    f32 time_passed;
+    Sprite_Animation animation;
+    f32 x_dir;
 };
 
 struct Mode_MiniGame{
@@ -47,6 +66,7 @@ struct Mode_MiniGame{
     union {
         MiniGameIceSkating ice;
         MiniGameBinary binary;
+        RockFall rockFall;
     };
 };
 
@@ -56,4 +76,5 @@ function void BuildMap(Game_State *state);
 function void UpdateRenderModeMiniGame(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer);
 function void UpdateRenderIceSkating(Game_State *state, Input *input, Draw_Batch *batch);
 function void UpdateRenderBinaryCount(Game_State *state, Input *input, Draw_Batch *batch);
+function void UpdateRenderRockFall(Game_State *state, Input *input, Draw_Batch *batch);
 #endif  // LUDUM_MODE_MINIGAME_H_
