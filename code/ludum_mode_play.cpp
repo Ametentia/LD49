@@ -90,6 +90,8 @@ function void ModePlay(Game_State *state, Random random) {
 
     state->mode = GameMode_Play;
     state->play = play;
+
+    play->timer.time = 100;
 }
 
 function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer) {
@@ -295,7 +297,44 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         //
         DrawQuad(batch, bird->image, bird->p, V2(0.3 * bird->x_scale, 0.3) * 0.4);
     }
+    CountDown(batch, input, play, state);
+}
 
+function void CountDown(Draw_Batch *batch,Input *input, Mode_Play *play, Game_State *state){
+    Image_Handle fgs[10] = {
+        GetImageByName(&state->assets,"number_0_foreground"),
+        GetImageByName(&state->assets,"number_1_foreground"),
+        GetImageByName(&state->assets,"number_2_foreground"),
+        GetImageByName(&state->assets,"number_3_foreground"),
+        GetImageByName(&state->assets,"number_4_foreground"),
+        GetImageByName(&state->assets,"number_5_foreground"),
+        GetImageByName(&state->assets,"number_6_foreground"),
+        GetImageByName(&state->assets,"number_7_foreground"),
+        GetImageByName(&state->assets,"number_8_foreground"),
+        GetImageByName(&state->assets,"number_9_foreground")
+    };
+    Image_Handle bgs[10] = {
+        GetImageByName(&state->assets,"number_0_background"),
+        GetImageByName(&state->assets,"number_1_background"),
+        GetImageByName(&state->assets,"number_2_background"),
+        GetImageByName(&state->assets,"number_3_background"),
+        GetImageByName(&state->assets,"number_4_background"),
+        GetImageByName(&state->assets,"number_5_background"),
+        GetImageByName(&state->assets,"number_6_background"),
+        GetImageByName(&state->assets,"number_7_background"),
+        GetImageByName(&state->assets,"number_8_background"),
+        GetImageByName(&state->assets,"number_9_background")
+    };
+    play->timer.time-=input->delta_time;
+    u32 time = cast(u32)play->timer.time;
+    v2 pos = V2(1,0);
+    while(time != 0){
+        //Okay I know it's not tied to the top of the screen, i couldn't work out the camera position, it just follows the player atm
+        DrawQuad(batch, bgs[time%10], play->player.p + pos - V2(1,1), V2(0.5,0.5),0, V4(1,1,1,1));
+        DrawQuad(batch, fgs[time%10], play->player.p + pos - V2(1,1), V2(0.5,0.5),0, V4(1,1,1,1));
+        pos.x-=0.5;
+        time/=10;
+    }
 }
 
 function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_State *state) {

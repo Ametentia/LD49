@@ -73,6 +73,11 @@ struct Bird_Follower {
     f32 x_scale;
 };
 
+struct GameTimer{
+    f32 time;
+    v2 p;
+};
+
 struct Player {
     u32 flags;
     f32 last_jump_time;
@@ -188,6 +193,8 @@ struct Mode_Play {
     u32 max_particles;
     u32 next_particle;
     Particle *particle_cache;
+
+    GameTimer timer;
 };
 
 function void ModePlay(Game_State *state, Random random);
@@ -203,5 +210,7 @@ function void SpawnDrillDebris(Mode_Play *play, Asset_Manager *assets, v2 p);
 function void UpdateRenderParticles(Draw_Batch *batch, Mode_Play *play, f32 dt);
 
 function void UpdateEnemy(Game_State *state, Mode_Play *play, Enemy *enemy, f32 dt);
+
+function void CountDown(Draw_Batch *batch, Input *input, Mode_Play *play, Game_State *state);
 
 #endif  // LUDUM_MODE_PLAY_H_
