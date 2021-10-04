@@ -86,7 +86,7 @@ function void ModePlay(Game_State *state, Random random) {
     play->particle_cache = AllocArray(play->arena, Particle, play->max_particles);
 
     Sound_Handle music_handle = GetSoundByName(&state->assets, "bgm");
-    play->music = PlaySound(&state->audio_state, music_handle, PlayingSound_Looped, V2(0.0, 0.0));
+    play->music = PlaySound(&state->audio_state, music_handle, PlayingSound_Looped, V2(0.25, 0.25));
 
     state->mode = GameMode_Play;
     state->play = play;
@@ -101,36 +101,6 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     Initialise(batch, &state->assets, renderer_buffer);
 
     Player *player = &play->player;
-
-    // @Debug: Regenerate world
-    //
-    if (JustPressed(input->keys[Key_F3])) {
-        play->enemy_count = 0;
-
-        GenerateWorld(play, &play->random, &state->assets);
-
-        player->p       = V2(WORLD_TILE_SIZE * 4, (WORLD_Y_SIZE - 3) * WORLD_TILE_SIZE);
-        play->camera_p  = player->p + V2(12 * WORLD_TILE_SIZE, -15 * WORLD_TILE_SIZE);
-        play->camera_dp = V2(0, 0);
-    }
-
-    if (JustPressed(input->keys[Key_F2])) {
-        play->debug_camera_enabled = !play->debug_camera_enabled;
-    }
-
-    if (play->debug_camera_enabled) {
-        if (IsPressed(input->keys[Key_Alt])) {
-            if (IsPressed(input->mouse_buttons[Mouse_Left])) {
-                f32 speed_scale = (play->debug_camera_p.z / 5.0f);
-                play->debug_camera_p.xy += speed_scale * V2(-input->mouse_delta.x, input->mouse_delta.y);
-            }
-        }
-
-        // @Debug: Update debug camera
-        //
-        play->debug_camera_p.z -= input->mouse_delta.z;
-        play->debug_camera_p.z = Clamp(play->debug_camera_p.z, 4, 150);
-    }
 
     // Camera movement
     //
@@ -247,22 +217,11 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         }
     }
 
-    // @Debug: Draw the player movement quads
-    //
-    u32 count = Min(play->count, ArraySize(play->last_p));
-    for (u32 it = 0; it < count; ++it) {
-        DrawQuad(batch, { 0 }, play->last_p[it], V2(0.05, 0.05), 0, V4(0, 1, 0, 1));
-    }
-
     // Draw player
     //
     Sprite_Animation *anim = &player->animations[player->cur_anim];
     v2 visual_p = player->p + player->visual_offset;
     DrawAnimation(batch, anim, visual_p, V2(player->facing, 1) * player->visual_dim);
-
-    // @Debug: Player hitbox outline
-    //
-    //DrawQuadOutline(batch, player->p, player->dim, 0, V4(1, 0, 0, 1), 0.01);
 
     if (player->flags & Player_Attacking) {
         v2 anim_p = player->p + V2(player->facing * 0.15, 0.03);
@@ -298,7 +257,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         Enemy *enemy = &play->enemies[it];
         if (!enemy->alive) { continue; }
 
-        UpdateEnemy(play, enemy, dt);
+        UpdateEnemy(state, play, enemy, dt);
         DrawAnimation(batch, &enemy->anim, enemy->p - V2(0, 0.11f), V2(enemy->x_scale * enemy_dim.x, enemy_dim.y));
     }
 
@@ -337,9 +296,6 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         DrawQuad(batch, bird->image, bird->p, V2(0.3 * bird->x_scale, 0.3) * 0.4);
     }
 
-    if (IsPressed(input->keys[Key_Enter])) {
-        ModeMiniGame(state);
-    }
 }
 
 function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_State *state) {
@@ -729,7 +685,7 @@ function b32 CanTraverse(Mode_Play *play, v2 p, f32 xdir) {
     return result;
 }
 
-function void UpdateEnemy(Mode_Play *play, Enemy *enemy, f32 dt) {
+function void UpdateEnemy(Game_State *state, Mode_Play *play, Enemy *enemy, f32 dt) {
     UpdateAnimation(&enemy->anim, dt);
 
     f32 gravity = (2 * PLAYER_MAX_JUMP_HEIGHT) / (PLAYER_JUMP_APEX_TIME * PLAYER_JUMP_APEX_TIME);
@@ -803,9 +759,8 @@ function void UpdateEnemy(Mode_Play *play, Enemy *enemy, f32 dt) {
         overlap.y = Min(enemy_r.max.y, player_r.max.y) - Max(enemy_r.min.y, player_r.min.y);
 
         if (overlap.x >= 0 && overlap.y >= 0) {
-            // @Todo: Start minigame here
-            //
-            //
+            ModeMiniGame(state);
+            enemy->alive = 0;
         }
     }
 
