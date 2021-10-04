@@ -18,10 +18,10 @@ function void ModeMiniGame(Game_State *state){
             }
             break;
         case MiniGame_RockFall: {
-                minigame->rockFall.free_space = RandomU32(random, 0, 5); 
-                minigame->rockFall.free_space2 = RandomU32(random, 0, 5); 
+                minigame->rockFall.free_space = RandomU32(random, 0, 5);
+                minigame->rockFall.free_space2 = RandomU32(random, 0, 5);
                 while(minigame->rockFall.free_space == minigame->rockFall.free_space2) {
-                    minigame->rockFall.free_space = RandomU32(random, 0, 5); 
+                    minigame->rockFall.free_space = RandomU32(random, 0, 5);
                 }
                 minigame->rockFall.x = 2;
                 minigame->rockFall.drop_time = 4;
@@ -182,7 +182,7 @@ function void UpdateRenderBinaryCount(Game_State *state, Input *input, Draw_Batc
         DrawQuad(batch, fore, text_pos, V2(0.5,0.5), 0, V4(1,0,0,1));
     } else {
         Image_Handle fore = GetImageByName(&state->assets, numbers_fore[text_aim]);
-        Image_Handle back = GetImageByName(&state->assets, numbers_back[text_aim]);
+        back = GetImageByName(&state->assets, numbers_back[text_aim]);
         DrawQuad(batch, back, text_pos, V2(0.5,0.5), 0, V4(1,1,1,1));
         DrawQuad(batch, fore, text_pos, V2(0.5,0.5), 0, V4(1,0,0,1));
     }
@@ -290,7 +290,7 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, MiniGameIceSk
     }
     MiniGameTile *newTile = &minigame->tiles[player->xOnGrid + (minigame->width*player->yOnGrid)];
     player->pos = newTile->p;
-    
+
     if(moved){
         if(newTile->walkedOn){
             player->alive=false;
