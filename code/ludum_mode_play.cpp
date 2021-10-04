@@ -7,11 +7,11 @@ function void ModePlay(Game_State *state, Random random) {
 
     play->arena  = &state->mode_arena;
     play->random = random;
+    play->lives = 3;
 
     // Setup player
     //
     Player *player = &play->player;
-
     player->flags = 0;
 
     player->p      = V2(WORLD_TILE_SIZE * 4, (WORLD_Y_SIZE - 3) * WORLD_TILE_SIZE);
@@ -265,7 +265,8 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
 
     // Update and draw the follower birds
     //
-    for (u32 it = 0; it < ArraySize(player->birds); ++it) {
+    printf("play %d\n", play->lives);
+    for (u32 it = 0; it < Min(ArraySize(player->birds), play->lives); ++it) {
         Bird_Follower *bird = &player->birds[it];
 
         // Move toward the player

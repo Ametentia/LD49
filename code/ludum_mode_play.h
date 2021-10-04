@@ -158,6 +158,7 @@ struct Mode_Play {
     //
     Player player;
     Random random;
+    u32 lives;
 
     u32 count;
     u32 next_last_p;

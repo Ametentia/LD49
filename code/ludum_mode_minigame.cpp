@@ -113,6 +113,12 @@ function void UpdateRenderRockFall(Game_State *state, Input *input, Draw_Batch *
             }
         }
     }
+    if(state->mode==GameMode_Play) {
+        if(minigame->x != minigame->free_space && minigame->x != minigame->free_space2) {
+            printf("in mini %d\n", state->play->lives);
+            state->play->lives = state->play->lives-1;
+        }
+    }
     DrawAnimation(batch, &minigame->animation, V2(0.15 + offset_x+(minigame->x*0.3), 0.15), V2(0.3*minigame->x_dir, 0.3), 0, V4(1,1,1,1));
 }
 
@@ -313,6 +319,7 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, MiniGameIceSk
         player->rotation += Degrees(3);
         if(Abs(player->scale.x) < 0.05){
             state->mode = GameMode_Play;
+            state->play->lives = state->play->lives-1;
         }
     }
 }
