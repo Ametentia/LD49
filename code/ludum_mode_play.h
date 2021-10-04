@@ -97,14 +97,13 @@ struct Tile {
     v2u grid_p;
     f32 drill_time;
 };
-
+struct Mode_MiniGame;
 struct Mode_Play {
     Memory_Arena *arena;
 
     // Player
     //
     Player player;
-
     Random random;
 
     u32 count;
@@ -122,6 +121,7 @@ struct Mode_Play {
     // World data
     //
     Tile *tiles;
+    Mode_MiniGame *minigame;
 };
 
 function void ModePlay(Game_State *state, Random random);

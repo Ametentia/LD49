@@ -2,6 +2,7 @@
 
 #include "ludum_mode_splash.cpp"
 #include "ludum_mode_play.cpp"
+#include "ludum_mode_minigame.cpp"
 
 function void LudumUpdateRender(Game_Context *context, Input *input, Renderer_Buffer *renderer_buffer) {
     Game_State *state = context->state;
@@ -30,6 +31,10 @@ function void LudumUpdateRender(Game_Context *context, Input *input, Renderer_Bu
         break;
         case GameMode_Play: {
             UpdateRenderModePlay(state, input, renderer_buffer);
+        }
+        break;
+        case GameMode_MiniGame:{
+            UpdateRenderModeMiniGame(state, input, renderer_buffer);
         }
         break;
     }

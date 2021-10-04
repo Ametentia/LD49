@@ -7,11 +7,13 @@ struct Game_State;
 
 #include "ludum_mode_splash.h"
 #include "ludum_mode_play.h"
+#include "ludum_mode_minigame.h"
 
 enum Game_Mode {
     GameMode_None = 0,
     GameMode_Splash,
-    GameMode_Play
+    GameMode_Play,
+    GameMode_MiniGame
 };
 
 struct Game_State {
@@ -23,8 +25,8 @@ struct Game_State {
 
     Game_Mode mode;
     union {
-        Mode_Splash *splash;
-        Mode_Play   *play;
+        Mode_Splash   *splash;
+        Mode_Play     *play;
     };
 };
 
