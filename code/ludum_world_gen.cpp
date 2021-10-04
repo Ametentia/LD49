@@ -42,23 +42,28 @@ function u8 CountNeighbours(Tile *tiles, u8 x, u8 y) {
 
 function void SimGeneration(Tile *tiles, u8 generations, u8 add_enterance = 1) {
     for(int i = 0; i < generations; i++) {
+        Scratch_Memory scratch = GetScratch();
+        Tile *new_tiles = AllocArray(scratch.arena, Tile, WORLD_X_SIZE*WORLD_Y_SIZE);
+        CopySize(new_tiles, tiles, WORLD_X_SIZE*WORLD_Y_SIZE*sizeof(Tile));
         for(int x = 2; x < WORLD_X_SIZE-3; x++) {
             for(int y = 2; y < WORLD_Y_SIZE-3; y++) {
                 u8 count = CountNeighbours(tiles, x, y);
                 Tile *tile = &tiles[(y * WORLD_Y_SIZE) + x];
+                Tile *new_tile = &new_tiles[(y * WORLD_Y_SIZE) + x];
                 if(tile->type != Tile_Air) {
                     if(count > 2) {
-                        tile->type = Tile_Ground;
+                        new_tile->type = Tile_Ground;
                     } else {
-                        tile->type = Tile_Air;
+                        new_tile->type = Tile_Air;
                     }
                 } else if(count > 5){
-                    tile->type = Tile_Ground;
+                    new_tile->type = Tile_Ground;
                 } else {
-                    tile->type = Tile_Air;
+                    new_tile->type = Tile_Air;
                 }
             }
         }
+        CopySize(tiles, new_tiles, WORLD_X_SIZE*WORLD_Y_SIZE*sizeof(Tile));
     }
     AddDoor(tiles);
     if(add_enterance)

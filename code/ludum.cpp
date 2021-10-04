@@ -14,6 +14,7 @@ function f32 Sign(f32 x) {
 
 #include "ludum_mode_splash.cpp"
 #include "ludum_mode_play.cpp"
+#include "ludum_mode_minigame.cpp"
 
 function void LudumUpdateRender(Game_Context *context, Input *input, Renderer_Buffer *renderer_buffer) {
     input->delta_time = Clamp(input->delta_time, 0.0, 0.2); // @Hack: Should probably be handled by the platform
@@ -44,6 +45,10 @@ function void LudumUpdateRender(Game_Context *context, Input *input, Renderer_Bu
         break;
         case GameMode_Play: {
             UpdateRenderModePlay(state, input, renderer_buffer);
+        }
+        break;
+        case GameMode_MiniGame:{
+            UpdateRenderModeMiniGame(state, input, renderer_buffer);
         }
         break;
     }
