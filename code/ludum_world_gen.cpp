@@ -1,3 +1,28 @@
+function void AddDoor(Tile *tiles, u8 exit = 1) {
+    u32 exit_x = WORLD_X_SIZE - 8;
+    u32 exit_y = 8;
+    u32 exit_height = 3;
+    u32 exit_width = 2;
+    Tile_Type type = Tile_Exit;
+    if(!exit) {
+        exit_x = 4;
+        exit_y = WORLD_Y_SIZE - 5;
+        type = Tile_Entrance;
+    }
+    for(u32 x = 0; x < exit_width; x++) {
+        for(u32 y = 0; y < exit_height; y++) {
+            Tile *tile = &tiles[((exit_y+y) * WORLD_Y_SIZE) + exit_x+x];
+            tile->type = type;
+        }
+    }
+    if(exit) {
+        for(u32 i = 0; i < 4; i++) {
+            Tile *tile = &tiles[((exit_y+exit_height) * WORLD_Y_SIZE) + exit_x+exit_width-3+i];
+            tile->type = Tile_Ground;
+        }
+    }
+}
+
 function u8 CountNeighbours(Tile *tiles, u8 x, u8 y) {
     u8 count = 0;
     for(u8 i = 0; i < 3; i++) {
@@ -15,7 +40,7 @@ function u8 CountNeighbours(Tile *tiles, u8 x, u8 y) {
     return count;
 }
 
-function void SimGeneration(Tile *tiles, u8 generations) {
+function void SimGeneration(Tile *tiles, u8 generations, u8 add_enterance = 1) {
     for(int i = 0; i < generations; i++) {
         for(int x = 2; x < WORLD_X_SIZE-3; x++) {
             for(int y = 2; y < WORLD_Y_SIZE-3; y++) {
@@ -35,6 +60,9 @@ function void SimGeneration(Tile *tiles, u8 generations) {
             }
         }
     }
+    AddDoor(tiles);
+    if(add_enterance)
+        AddDoor(tiles, 0);
 }
 
 function void SpawnPopulation(Tile *tiles, Random *random) {
@@ -46,7 +74,11 @@ function void SpawnPopulation(Tile *tiles, Random *random) {
             if(RandomU32(random, 0, 9) > 4) {
                 tile->type = Tile_Ground;
             }
-            if(i < 2 || i > WORLD_X_SIZE-2 || j<2 || j>WORLD_Y_SIZE-2) {
+
+            if((i < 14 && j > WORLD_Y_SIZE - 14) || (j < 14 && i > WORLD_X_SIZE - 14)) {
+                tile->type = Tile_Air;
+            }
+            if(i < 3 || i > WORLD_X_SIZE-3 || j<3 || j>WORLD_Y_SIZE-3) {
                 tile->type = Tile_Ground;
             }
         }

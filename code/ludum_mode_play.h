@@ -21,6 +21,7 @@
 #define PLAYER_JUMP_APEX_TIME   (0.5f)
 #define PLAYER_JUMP_BUFFER_TIME (0.2f)
 #define PLAYER_COYOTE_TIME      (0.2f)
+#define TILE_DRILL_TIME         (0.75f)
 
 // Slow down due to "friction"
 //
@@ -30,6 +31,7 @@
 //
 #define PLAYER_MAX_SPEED_X (2.2f)
 #define PLAYER_MAX_SPEED_Y (4.3f)
+#define PLAYER_MAX_SPEED_X_DRILLING (1.1f)
 
 // Movement
 //
@@ -43,7 +45,8 @@
 
 enum Player_Flags {
     Player_OnGround   = (1 << 0),
-    Player_DoubleJump = (1 << 2),
+    Player_Drilling   = (1 << 1),
+    Player_DoubleJump = (1 << 2)
 };
 
 enum Player_Animation {
@@ -85,11 +88,15 @@ struct Player {
     v2 dim;
     v2 visual_dim;
     v2 visual_offset;
+
+    Playing_Sound *drill_hit_sound;
 };
 
 enum Tile_Type {
-    Tile_Air = 0,
-    Tile_Ground
+    Tile_Air = -3,
+    Tile_Exit,
+    Tile_Entrance,
+    Tile_Ground,
 };
 
 struct Tile {
@@ -97,6 +104,7 @@ struct Tile {
 
     Tile_Type type;
     v2u grid_p;
+    f32 drill_time;
 };
 
 struct Mode_Play {
@@ -134,7 +142,7 @@ struct Mode_Play {
 function void ModePlay(Game_State *state, Random random);
 function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer);
 
-function void UpdatePlayer(Mode_Play *play, Player *player, Input *input);
+function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_State *state);
 
 function b32 IsValidTile(v2s tile_p); // Checks if the tile position is valid within the world grid
 function u32 GetCloseTiles(v2 p, Tile *tiles, Tile **out); // Get all of the tiles close to the position

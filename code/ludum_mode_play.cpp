@@ -14,7 +14,7 @@ function void ModePlay(Game_State *state, Random random) {
 
     player->flags = 0;
 
-    player->p      = V2(5, 5);
+    player->p      = V2(WORLD_TILE_SIZE * 4, (WORLD_Y_SIZE - 3) * WORLD_TILE_SIZE);
     player->dp     = V2(0, 0);
     player->dim    = V2(0.15, 0.3); // This is used for collision detection
     player->facing = 1;
@@ -22,7 +22,7 @@ function void ModePlay(Game_State *state, Random random) {
     // These are used to draw the player
     //
     player->visual_dim    = V2(0.5, 0.5);
-    player->visual_offset = V2(0, -0.1);
+    player->visual_offset = V2(0,  -0.1);
 
     str8 animation_names[PlayerAnimation_Count] = {
         WrapConst("idle"),
@@ -85,25 +85,31 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
 
     // @Debug: Regenerate world
     //
-    if (JustPressed(input->keys[Key_L])) {
+    if (JustPressed(input->keys[Key_F3])) {
         GenerateWorld(play->tiles, &play->random, &state->assets);
+
+        player->p       = V2(WORLD_TILE_SIZE * 4, (WORLD_Y_SIZE - 3) * WORLD_TILE_SIZE);
+        play->camera_p  = player->p;
+        play->camera_dp = V2(0, 0);
     }
 
     if (JustPressed(input->keys[Key_F2])) {
         play->debug_camera_enabled = !play->debug_camera_enabled;
     }
 
-    if (IsPressed(input->keys[Key_Alt])) {
-        if (IsPressed(input->mouse_buttons[Mouse_Left])) {
-            f32 speed_scale = (play->debug_camera_p.z / 5.0f);
-            play->debug_camera_p.xy += speed_scale * V2(-input->mouse_delta.x, input->mouse_delta.y);
+    if (play->debug_camera_enabled) {
+        if (IsPressed(input->keys[Key_Alt])) {
+            if (IsPressed(input->mouse_buttons[Mouse_Left])) {
+                f32 speed_scale = (play->debug_camera_p.z / 5.0f);
+                play->debug_camera_p.xy += speed_scale * V2(-input->mouse_delta.x, input->mouse_delta.y);
+            }
         }
-    }
 
-    // @Debug: Update debug camera
-    //
-    play->debug_camera_p.z -= input->mouse_delta.z;
-    play->debug_camera_p.z = Clamp(play->debug_camera_p.z, 4, 150);
+        // @Debug: Update debug camera
+        //
+        play->debug_camera_p.z -= input->mouse_delta.z;
+        play->debug_camera_p.z = Clamp(play->debug_camera_p.z, 4, 150);
+    }
 
     // Camera movement
     //
@@ -113,9 +119,12 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     play->shake   -= dt;
     play->shake    = Max(play->shake, 0);
 
-    if (play->shake_t <= 0 && play->shake <= 0) {
-        play->shake_t = RandomF32(&play->random, 3.9, 9.2);
-        play->shake   = RandomUnilateral(&play->random);
+    if (play->shake_t <= 0) {
+        //play->shake_t = RandomF32(&play->random, 3.9, 9.2);
+        play->shake_t = RandomF32(&play->random, 1.4, 2.8);
+
+        play->shake += RandomUnilateral(&play->random);
+        play->shake  = Min(play->shake, 1.0f);
     }
     else if (JustPressed(input->keys[Key_O])) {
         play->shake = 0.3f;
@@ -178,7 +187,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     //
     DrawClear(batch, V4(0.01f, 0.01f, 0.01f, 1.0f));
 
-    UpdatePlayer(play, player, input);
+    UpdatePlayer(play, player, input, state);
 
     // @Debug: Showing player movement over time
     //
@@ -194,6 +203,16 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         for (u32 x = 0; x < WORLD_X_SIZE; ++x) {
             Tile *tile = &play->tiles[(y * WORLD_Y_SIZE) + x];
             if (tile->type == Tile_Air) { continue; }
+            if (tile->type == Tile_Exit) {
+                v2 world_p = V2(tile->grid_p) * tile_dim;
+                DrawQuad(batch, {0}, world_p, tile_dim,0, V4(0,1,0,1));
+                continue;
+            }
+            if (tile->type == Tile_Entrance) {
+                v2 world_p = V2(tile->grid_p) * tile_dim;
+                DrawQuad(batch, {0}, world_p, tile_dim,0, V4(0,0,1,1));
+                continue;
+            }
 
             v2 world_p = V2(tile->grid_p) * tile_dim;
             DrawQuad(batch, tile->image, world_p, tile_dim);
@@ -216,6 +235,13 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     // @Debug: Player hitbox outline
     //
     DrawQuadOutline(batch, player->p, player->dim, 0, V4(1, 0, 0, 1), 0.01);
+
+    if (player->flags & Player_Drilling) {
+        Image_Handle drill = GetImageByName(&state->assets, "drill");
+        v2 drill_pos       = player->p + V2(0.08 * player->facing, 0.04);
+
+        DrawQuad(batch, drill, drill_pos, V2(0.3 * player->facing, 0.1), 0, V4(1, 1, 1, 1));
+    }
 
     // Update and draw the follower birds
     //
@@ -251,7 +277,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     }
 }
 
-function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
+function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_State *state) {
     f32 dt = input->delta_time;
 
     b32 on_ground = (player->flags & Player_OnGround);
@@ -293,7 +319,6 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
         player->dp.x     *= (1.0f / (1 + (PLAYER_DAMPING * dt)));
         player->cur_anim  = PlayerAnimation_Idle;
     }
-
     if ((input->time - player->last_jump_time) <= PLAYER_JUMP_BUFFER_TIME) {
         b32 double_jump = (player->flags & Player_DoubleJump);
 
@@ -306,7 +331,9 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
             if (double_jump) {
                 player->flags &= ~Player_DoubleJump;
             }
-            else { player->flags |= Player_DoubleJump; }
+            else {
+                player->flags |= Player_DoubleJump;
+            }
         }
     }
 
@@ -325,13 +352,40 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
 
     // Limit x speed
     //
-    if (Abs(player->dp.x) > PLAYER_MAX_SPEED_X) {
-        player->dp.x *= (PLAYER_MAX_SPEED_X / Abs(player->dp.x));
+    //f32 max_speed = (player->flags & Player_Drilling) ? PLAYER_MAX_SPEED_X_DRILLING : PLAYER_MAX_SPEED_X;
+    f32 max_speed = PLAYER_MAX_SPEED_X;
+    if (Abs(player->dp.x) > max_speed) {
+        player->dp.x *= (max_speed / Abs(player->dp.x));
     }
 
+    // Limit y only in downward direction to prevent jumps from being cut short
+    //
     if (player->dp.y > PLAYER_MAX_SPEED_Y) {
         player->dp.y *= (PLAYER_MAX_SPEED_Y / player->dp.y);
     }
+
+    // Drill
+    //
+    if (IsPressed(input->keys[Key_L]) && on_ground) {
+        if (!(player->flags & Player_Drilling)) {
+            // TODO Drill noise
+        }
+
+        player->flags |= Player_Drilling;
+    }
+    else if (player->flags & Player_Drilling) {
+        player->flags &= ~Player_Drilling;
+        // TODO stop Drill noise
+    }
+
+    // Calculate the drill collision box
+    //
+    v2 drill_pos = player->p + V2(0.08 * player->facing, -0.15f);
+    v2 drill_dim = V2(0.3, 0.4);
+
+    rect2 drill_r;
+    drill_r.min = drill_pos - (0.5f * drill_dim);
+    drill_r.max = drill_pos + (0.5f * drill_dim);
 
     Tile *collision_tiles[9] = {};
     u32 tile_count = GetCloseTiles(player->p, play->tiles, collision_tiles);
@@ -347,9 +401,57 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
     // Process collisions
     //
     v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
+
+    u32 hits = 0;
+    if (player->flags & Player_Drilling) {
+        play->shake = 0.18f;
+
+        for (u32 it = 0; it < tile_count; ++it) {
+            Tile *tile = collision_tiles[it];
+            if (tile->type < 0) { continue; }
+
+            v2 tile_p = V2(tile->grid_p) * tile_dim;
+
+            rect2 tile_r;
+            tile_r.min = tile_p - (0.5f * tile_dim);
+            tile_r.max = tile_p + (0.5f * tile_dim);
+
+            v2 overlap;
+            overlap.x = Min(drill_r.max.x, tile_r.max.x) - Max(drill_r.min.x, tile_r.min.x);
+            overlap.y = Min(drill_r.max.y, tile_r.max.y) - Max(drill_r.min.y, tile_r.min.y);
+
+            if (overlap.x >= 0 && overlap.y >= 0) {
+                if (overlap.x > 0) {
+                    tile->drill_time += dt;
+
+                    if (tile->drill_time > TILE_DRILL_TIME) {
+                        tile->type = Tile_Air;
+                    }
+                    else {
+                        hits += 1;
+                        play->shake = 0.3f;
+
+                        if (!player->drill_hit_sound) {
+                            Sound_Handle drill      = GetSoundByName(&state->assets, "drillbrrr");
+                            player->drill_hit_sound = PlaySound(&state->audio_state, drill, PlayingSound_Looped);
+                        }
+                    }
+                }
+            }
+            else {
+                tile->drill_time = 0;
+            }
+        }
+    }
+
+    if (hits == 0 && player->drill_hit_sound) {
+        StopSound(&state->audio_state, player->drill_hit_sound);
+        player->drill_hit_sound = 0;
+    }
+
     for (u32 it = 0; it < tile_count; ++it) {
         Tile *tile = collision_tiles[it];
-        if (tile->type == Tile_Air) { continue; }
+        if (tile->type < 0) { continue; }
 
         v2 tile_p = V2(tile->grid_p) * tile_dim;
 
@@ -392,14 +494,6 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input) {
             //
             player_r.min = player->p - (0.5f * player->dim);
             player_r.max = player->p + (0.5f * player->dim);
-        }
-    }
-
-    // Was on ground and no longer is so give the player a chance to jump once
-    //
-    if (on_ground && !(player->flags & Player_OnGround)) {
-        if ((input->time - player->last_on_ground_time) > PLAYER_COYOTE_TIME) {
-            player->flags |= Player_DoubleJump;
         }
     }
 }
