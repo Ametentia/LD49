@@ -1,12 +1,20 @@
 struct MiniGamePlayer{
     f32 x_scale;
     v2 pos;
+    u32 xOnGrid;
+    u32 yOnGrid;
     v2 dim;
     Sprite_Animation animation;
 };
 
+enum MiniGameTileType{
+    Nothing = -1,
+    Blocked = 0,
+    Open = 1
+};
+
 struct MiniGameTile{
-    s32 value;
+    MiniGameTileType type;
     Image_Handle asset;
     v2 p;
     v2 dim;

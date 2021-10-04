@@ -8,6 +8,8 @@ function void ModeMiniGame(Game_State *state){
     MiniGamePlayer *player = &minigame->player;
     player->pos = V2(0,0);
     player->dim = V2(0.3,0.3);
+    player->xOnGrid = 0;
+    player->yOnGrid = 0;
     player->x_scale = 1;
     Image_Handle walk_sheet = GetImageByName(&state->assets, "Walking_sheet");
     Initialise(&player->animation, walk_sheet, 1, 20, 1.0/64.0);
@@ -40,71 +42,38 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
     f32 dt = input->delta_time;
     UpdateAnimation(&player->animation, dt);
 
-    v2 movementVect = V2(0,0);
     // Move left
     //
-    if (IsPressed(input->keys[Key_A])) {
-        if(player->pos.x - 0.1 < 0){
-            player->pos.x = 0;
+    if (JustPressed(input->keys[Key_A])) {
+        if(player->xOnGrid > 0 && minigame->tiles[player->xOnGrid + (minigame->height*player->yOnGrid)].type != 0){
+            player->xOnGrid--;
+            player->x_scale = -1;
         }
-        else{
-            movementVect.x -= 0.05;
-        }
-        player->x_scale = -1;
     }
     // Move right
     //
-    if (IsPressed(input->keys[Key_D])) {
-        if(player->pos.x + 0.1 > (minigame->width-1)*0.31){
-            player->pos.x = (minigame->width-1)*0.31;
+    if (JustPressed(input->keys[Key_D])) {
+        if(player->xOnGrid < minigame->width && minigame->tiles[player->xOnGrid + (minigame->height*player->yOnGrid)].type != 0){
+            player->xOnGrid++;
+            player->x_scale = 1;
         }
-        else{
-            movementVect.x += 0.05;
-
-        }
-        player->x_scale = 1;
     }
     // Move up
     //
-    if (IsPressed(input->keys[Key_W])) {
-        if(player->pos.y - 0.1 < 0){
-            player->pos.y = 0;    
-        }
-        else{
-            movementVect.y -= 0.05;
+    if (JustPressed(input->keys[Key_W]) ) {
+        if(player->yOnGrid > 0 && minigame->tiles[player->xOnGrid + (minigame->height*player->yOnGrid)].type != 0){
+            player->yOnGrid--;
         }
     }
     // Move down
     //
-    if (IsPressed(input->keys[Key_S])) {
-        if(player->pos.y + 0.1 > (minigame->height-1)*0.31){
-            player->pos.y = (minigame->height-1)*0.31;    
-        }
-        else{
-            movementVect.y += 0.05;
+    if (JustPressed(input->keys[Key_S])) {
+        if(player->yOnGrid < minigame->height && minigame->tiles[player->xOnGrid + (minigame->height*player->yOnGrid)].type != 0){
+            player->yOnGrid++;
         }
     }
 
-    MiniGameTile obstructionTiles[2];
-    u32 j = 0;
-    for(u32 i = 0; i < minigame->width*minigame->height; i++){
-        if(minigame->tiles[i].value == 0){
-            obstructionTiles[j++] = minigame->tiles[i];
-        }
-    }
-    for(u32 i = 0; i < j; i++){
-        if(player->pos.x > obstructionTiles[i].p.x && player->pos.x < obstructionTiles[i].p.x+0.31){
-
-        }
-    }
-    
-    for(u32 i = 0; i < minigame->width*minigame->height; i++){
-        if(Length(minigame->tiles[i].p - player->pos) < 0.05){
-            minigame->tiles[i].walkedOn = true;
-            minigame->tiles[i].asset = GetImageByName(&state->assets,"ground_02");
-        }
-    }
-    player->pos += movementVect;
+    player->pos =  minigame->tiles[player->xOnGrid + (minigame->width*player->yOnGrid)].p;
 }
 
 function void BuildMap(Game_State *state){
@@ -119,7 +88,7 @@ function void BuildMap(Game_State *state){
     minigame->widths[1] = 4;
     minigame->widths[2] = 4;
     minigame->widths[3] = 2;
-    s32 tileNumbers[] = {
+    int tileNumbers[] = {
         1,1,1,1,1,1,1,1,1,-1,-1,-1,
         1,0,1,1,1,1,0,1,-1,-1,-1,-1,
         1,1,1,1,1,0,1,1,1,1,1,0,
@@ -132,11 +101,11 @@ function void BuildMap(Game_State *state){
     for(u32 i = 0; i<minigame->height;i++){
         for(u32 j = 0; j < minigame->width; j++){
             MiniGameTile *t = &minigame->tiles[(i*minigame->width)+j];
-            t->value = tileNumbers[(i*minigame->width)+j+(r*12)];
+            t->type = (MiniGameTileType)tileNumbers[(i*minigame->width)+j+(r*12)];
             t->dim = V2(0.3,0.3);
             t->walkedOn = false;
             t->p = V2(0.31*j, 0.31*i);
-            t->asset = GetImageByName(&state->assets,t->value == 1 && !t->walkedOn ? "ground_01" : "ground_02");
+            t->asset = GetImageByName(&state->assets,t->type == 1 && !t->walkedOn ? "ground_01" : "ground_02");
         }
     }
 }
