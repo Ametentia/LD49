@@ -4,29 +4,59 @@ function void ModeMiniGame(Game_State *state){
     state->mode = GameMode_MiniGame;
     Mode_MiniGame *minigame = AllocType(&state->mode_arena,Mode_MiniGame);
     state->play->minigame = minigame;
+    // DEBUG @DEC Change this to your game
+    minigame->type = BinaryCount;
 
-    MiniGamePlayer *player = &minigame->player;
-    player->pos = V2(0,0);
-    player->dim = V2(0.3,0.3);
-    player->x_scale = 1;
-    Image_Handle walk_sheet = GetImageByName(&state->assets, "Walking_sheet");
-    Initialise(&player->animation, walk_sheet, 1, 20, 1.0/64.0);
-    BuildMap(state);
+
+    switch(state->play->minigame->type) {
+        case BinaryCount: {
+                
+            }
+            break;
+        case IceSkating: {
+                MiniGamePlayer *player = &minigame->ice.player;
+                player->pos = V2(0,0);
+                player->dim = V2(0.3,0.3);
+                player->x_scale = 1;
+                Image_Handle walk_sheet = GetImageByName(&state->assets, "Walking_sheet");
+                Initialise(&player->animation, walk_sheet, 1, 20, 1.0/64.0);
+                BuildMap(state);
+            }
+        break;
+    }
 }
 
 function void UpdateRenderModeMiniGame(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer) {
-    Mode_MiniGame *minigame = state->play->minigame;
-
     Draw_Batch _batch = {};
     Draw_Batch *batch = &_batch;
-
-    MiniGamePlayer *player = &minigame->player;
-    UpdateMGPlayer(player, input, minigame, state);
 
     Initialise(batch, &state->assets, renderer_buffer);
     SetCameraTransform(batch, 0, V3(1, 0, 0), V3(0, 1, 0), V3(0, 0, 1), V3(0, 0, 13));
 
     DrawClear(batch, V4(0.01f, 0.01f, 0.01f, 1.0f));
+    switch(state->play->minigame->type) {
+        case BinaryCount: {
+                UpdateRenderBinaryCount(state, input, batch);
+            }
+            break;
+        case IceSkating: {
+                UpdateRenderIceSkating(state, input, batch);
+            }
+        break;
+    }
+}
+
+function void UpdateRenderBinaryCount(Game_State *state, Input *input, Draw_Batch *batch) {
+    Mode_MiniGame *minigame = state->play->minigame;
+
+}
+
+function void UpdateRenderIceSkating(Game_State *state, Input *input, Draw_Batch *batch) {
+    MiniGameIceSkating *minigame = &state->play->minigame->ice;
+
+    MiniGamePlayer *player = &minigame->player;
+    UpdateMGPlayer(player, input, minigame, state);
+
     DrawQuad(batch, {0}, V2(0,0),V2(6.0,3.5), 0, V4(60/255.0, 5/255.0, 5/255.0,1.0));
 
     for(u32 i = 0; i < minigame->height*minigame->width; i++){
@@ -36,7 +66,7 @@ function void UpdateRenderModeMiniGame(Game_State *state, Input *input, Renderer
     DrawAnimation(batch, &player->animation, player->pos,V2(player->x_scale,1)*player->dim, 0, V4(1,1,1,1));
 }
 
-function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame *minigame, Game_State *state){
+function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, MiniGameIceSkating *minigame, Game_State *state){
     f32 dt = input->delta_time;
     UpdateAnimation(&player->animation, dt);
 
@@ -85,7 +115,7 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
         }
     }
 
-    MiniGameTile obstructionTiles[];
+    MiniGameTile obstructionTiles[4];
     u32 j = 0;
     for(u32 i = 0; i < minigame->width*minigame->height; i++){
         if(minigame->tiles[i].value == 0){
@@ -110,7 +140,7 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
 function void BuildMap(Game_State *state){
     Mode_Play *play = state->play;
     Random *random = &play->random;
-    Mode_MiniGame *minigame = play->minigame;
+    MiniGameIceSkating *minigame = &play->minigame->ice;
     minigame->heights[0] = 3;
     minigame->heights[1] = 2;
     minigame->heights[2] = 3;
