@@ -1,10 +1,24 @@
 #include <base.cpp>
 
+// @Missing: Should be in base
+//
+function f32 Sign(f32 x) {
+    f32 result = (x < 0) ? -1 : 1;
+    return result;
+}
+
+//
+// @Missing(James): I should add a call that allows you to make a Draw_Transform without the need for the
+// render batch or the renderer buffer
+//
+
 #include "ludum_mode_splash.cpp"
 #include "ludum_mode_play.cpp"
 #include "ludum_mode_minigame.cpp"
 
 function void LudumUpdateRender(Game_Context *context, Input *input, Renderer_Buffer *renderer_buffer) {
+    input->delta_time = Clamp(input->delta_time, 0.0, 0.2); // @Hack: Should probably be handled by the platform
+
     Game_State *state = context->state;
     if (!state) {
         Memory_Allocator *system_alloc = Platform->GetMemoryAllocator();

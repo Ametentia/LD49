@@ -39,6 +39,8 @@ function void UpdateRenderModeMiniGame(Game_State *state, Input *input, Renderer
 function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame *minigame, Game_State *state){
     f32 dt = input->delta_time;
     UpdateAnimation(&player->animation, dt);
+
+    v2 movementVect = V2(0,0);
     // Move left
     //
     if (IsPressed(input->keys[Key_A])) {
@@ -46,8 +48,7 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
             player->pos.x = 0;
         }
         else{
-            player->pos.x -= 0.05;
-
+            movementVect.x -= 0.05;
         }
         player->x_scale = -1;
     }
@@ -58,7 +59,7 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
             player->pos.x = (minigame->width-1)*0.31;
         }
         else{
-            player->pos.x += 0.05;
+            movementVect.x += 0.05;
 
         }
         player->x_scale = 1;
@@ -70,7 +71,7 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
             player->pos.y = 0;    
         }
         else{
-            player->pos.y -= 0.05;
+            movementVect.y -= 0.05;
         }
     }
     // Move down
@@ -80,16 +81,25 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
             player->pos.y = (minigame->height-1)*0.31;    
         }
         else{
-            player->pos.y += 0.05;
+            movementVect.y += 0.05;
         }
     }
 
+    MiniGameTile obstructionTiles[];
+    u32 j = 0;
     for(u32 i = 0; i < minigame->width*minigame->height; i++){
         if(minigame->tiles[i].value == 0){
-            // if(player->pos.x > minigame->tiles[i].p.x && player->pos.x < minigame->tiles[i].p.x+minigame->width){
-                
-            // }
+            obstructionTiles[j++] = minigame->tiles[i];
         }
+    }
+    for(u32 i = 0; i < j; i++){
+        if(player->pos.x > obstructionTiles[i].p.x && player->pos.x < obstructionTiles[i].p.x+0.31){
+
+        }
+    }
+    
+
+    for(u32 i = 0; i < minigame->width*minigame->height; i++){
         if(Length(minigame->tiles[i].p - player->pos) < 0.05){
             minigame->tiles[i].walkedOn = true;
             minigame->tiles[i].asset = GetImageByName(&state->assets,"ground_02");
