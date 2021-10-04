@@ -44,23 +44,26 @@ function void ModePlay(Game_State *state, Random random) {
     Bird_Follower *birds = player->birds;
 
     birds[0].image  = GetImageByName(&state->assets, "bird_green");
+    birds[0].p      = player->p;
     birds[0].cp     = 50;
     birds[0].vp     = 25;
     birds[0].offset = V2(-0.05, 0);
 
     birds[1].image  = GetImageByName(&state->assets, "bird_blue");
+    birds[1].p      = player->p;
     birds[1].cp     = 35;
     birds[1].vp     = 12;
     birds[1].offset = V2(0, -0.18);
 
     birds[2].image  = GetImageByName(&state->assets, "bird_red");
+    birds[2].p      = player->p;
     birds[2].cp     = 40;
     birds[2].vp     = 30;
     birds[2].offset = V2(0.08, 0);
 
     // Camera parameters
     //
-    play->camera_p     = player->p;
+    play->camera_p     = player->p + V2(12 * WORLD_TILE_SIZE, -15 * WORLD_TILE_SIZE);
     play->shake_angle  = Pi32 / 64.0f;
     play->shake_offset = V2(0.10, 0.10);
 
@@ -68,6 +71,13 @@ function void ModePlay(Game_State *state, Random random) {
 
     play->tiles = AllocArray(play->arena, Tile, (WORLD_X_SIZE * WORLD_Y_SIZE));
     GenerateWorld(play->tiles, &random, &state->assets);
+
+    play->max_particles = 1024;
+    play->next_particle = 0;
+    play->particle_cache = AllocArray(play->arena, Particle, play->max_particles);
+
+    Sound_Handle music_handle = GetSoundByName(&state->assets, "bgm");
+    play->music = PlaySound(&state->audio_state, music_handle, PlayingSound_Looped);
 
     state->mode = GameMode_Play;
     state->play = play;
@@ -89,7 +99,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         GenerateWorld(play->tiles, &play->random, &state->assets);
 
         player->p       = V2(WORLD_TILE_SIZE * 4, (WORLD_Y_SIZE - 3) * WORLD_TILE_SIZE);
-        play->camera_p  = player->p;
+        play->camera_p  = player->p + V2(12 * WORLD_TILE_SIZE, -15 * WORLD_TILE_SIZE);
         play->camera_dp = V2(0, 0);
     }
 
@@ -127,7 +137,8 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         play->shake  = Min(play->shake, 1.0f);
     }
     else if (JustPressed(input->keys[Key_O])) {
-        play->shake = 0.3f;
+        play->shake += 0.3f;
+        play->shake = Min(play->shake, 1.0f);
     }
 
     v2 shake_offset = play->shake_offset * (play->shake * play->shake) * RandomBilateral(&play->random);
@@ -243,6 +254,8 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         DrawQuad(batch, drill, drill_pos, V2(0.3 * player->facing, 0.1), 0, V4(1, 1, 1, 1));
     }
 
+    UpdateRenderParticles(batch, play, dt);
+
     // Update and draw the follower birds
     //
     for (u32 it = 0; it < ArraySize(player->birds); ++it) {
@@ -319,21 +332,24 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
         player->dp.x     *= (1.0f / (1 + (PLAYER_DAMPING * dt)));
         player->cur_anim  = PlayerAnimation_Idle;
     }
+
     if ((input->time - player->last_jump_time) <= PLAYER_JUMP_BUFFER_TIME) {
         b32 double_jump = (player->flags & Player_DoubleJump);
 
         if (on_ground || (input->time - player->last_on_ground_time) <= PLAYER_COYOTE_TIME || double_jump) {
-            player->dp.y   = -Sqrt(2 * gravity * PLAYER_MAX_JUMP_HEIGHT);
-            player->flags &= ~Player_OnGround;
-
-            player->last_jump_time = 0;
-
             if (double_jump) {
+                gravity = (2 * PLAYER_MAX_DOUBLE_JUMP_HEIGHT) / (PLAYER_JUMP_APEX_TIME * PLAYER_JUMP_APEX_TIME);
+
+                player->dp.y   = -Sqrt(2 * gravity * PLAYER_MAX_DOUBLE_JUMP_HEIGHT);
                 player->flags &= ~Player_DoubleJump;
             }
             else {
+                player->dp.y   = -Sqrt(2 * gravity * PLAYER_MAX_JUMP_HEIGHT);
                 player->flags |= Player_DoubleJump;
             }
+
+            player->flags &= ~Player_OnGround;
+            player->last_jump_time = 0;
         }
     }
 
@@ -352,8 +368,7 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
 
     // Limit x speed
     //
-    //f32 max_speed = (player->flags & Player_Drilling) ? PLAYER_MAX_SPEED_X_DRILLING : PLAYER_MAX_SPEED_X;
-    f32 max_speed = PLAYER_MAX_SPEED_X;
+    f32 max_speed = (player->flags & Player_Drilling) ? PLAYER_MAX_SPEED_X_DRILLING : PLAYER_MAX_SPEED_X;
     if (Abs(player->dp.x) > max_speed) {
         player->dp.x *= (max_speed / Abs(player->dp.x));
     }
@@ -404,8 +419,6 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
 
     u32 hits = 0;
     if (player->flags & Player_Drilling) {
-        play->shake = 0.18f;
-
         for (u32 it = 0; it < tile_count; ++it) {
             Tile *tile = collision_tiles[it];
             if (tile->type < 0) { continue; }
@@ -426,10 +439,14 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
 
                     if (tile->drill_time > TILE_DRILL_TIME) {
                         tile->type = Tile_Air;
+
+                        Image_Handle image = GetImageByName(&state->assets, "ground_01");
+                        for (u32 p = 0; p < 4; ++p) {
+                            SpawnDrillDebris(play, drill_pos + V2(player->facing * drill_dim.x, 0.19f), image);
+                        }
                     }
                     else {
                         hits += 1;
-                        play->shake = 0.3f;
 
                         if (!player->drill_hit_sound) {
                             Sound_Handle drill      = GetSoundByName(&state->assets, "drillbrrr");
@@ -440,6 +457,28 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
             }
             else {
                 tile->drill_time = 0;
+            }
+        }
+
+        if (hits != 0) {
+            if (play->shake <= 0.3) {
+                play->shake += (0.3f - play->shake);
+            }
+
+            player->drill_particle_time -= dt;
+            if (player->drill_particle_time <= 0.0f) {
+                Image_Handle image = GetImageByName(&state->assets, "ground_01");
+                u32 particle_count = RandomU32(&play->random, 2, 8);
+                for (u32 p = 0; p < particle_count; ++p) {
+                    SpawnDrillDebris(play, drill_pos + V2(player->facing * 0.85 * drill_dim.x, 0.19), image);
+                }
+
+                player->drill_particle_time = 0.2f;
+            }
+        }
+        else {
+            if (play->shake <= 0.18f) {
+                play->shake += (0.18f - play->shake);
             }
         }
     }
@@ -525,4 +564,67 @@ function u32 GetCloseTiles(v2 p, Tile *tiles, Tile **out) {
     }
 
     return result;
+}
+
+function void SpawnParticle(Mode_Play *play, Image_Handle image, v3 p, v3 dp, f32 a, f32 da, f32 s, f32 ds, f32 t) {
+    Particle *particle = &play->particle_cache[play->next_particle];
+    play->next_particle += 1;
+    play->next_particle %= play->max_particles;
+
+    particle->image = image;
+
+    particle->p     = p;
+    particle->dp    = dp;
+
+    particle->a     = a;
+    particle->da    = da;
+
+    particle->s     = s;
+    particle->ds    = ds;
+
+    particle->t     = t;
+}
+
+function void SpawnDrillDebris(Mode_Play *play, v2 p, Image_Handle image) {
+    // p and dp
+    //
+    //v2 p_var = 0.1 * V2(RandomBilateral(&play->random), RandomBilateral(&play->random));
+    //p += p_var;
+
+    v2 dp = V2(RandomBilateral(&play->random), RandomBilateral(&play->random));
+
+    // a and da
+    //
+    f32 a  = RandomF32(&play->random, 0, Tau32);
+    f32 da = RandomUnilateral(&play->random);
+
+    // s and ds
+    //
+    f32 s  = 0.05f;
+    f32 ds = 0; // 0.05 * RandomUnilateral(&play->random);
+
+    f32 t = RandomF32(&play->random, 0.5f, 1.3f);
+
+    // @Todo: Image handle
+    //
+    SpawnParticle(play, image, V3(p), V3(dp), a, da, s, ds, t);
+}
+
+function void UpdateRenderParticles(Draw_Batch *batch, Mode_Play *play, f32 dt) {
+    for (u32 it = 0; it < play->max_particles; ++it) {
+        Particle *p = &play->particle_cache[it];
+        if (p->t <= 0.0f) { continue; }
+
+        v3 ddp = V3(0.0f, 2.3f, 0.0f);
+
+        p->p  += (p->dp * dt);
+        p->dp += (ddp * dt);
+
+        p->a += (p->da * dt);
+        p->s += (p->ds * dt);
+
+        p->t -= dt;
+
+        DrawQuad(batch, p->image, p->p, V2(p->s, p->s), p->a);
+    }
 }

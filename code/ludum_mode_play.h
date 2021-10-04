@@ -13,6 +13,7 @@
 // In "world units"
 //
 #define PLAYER_MAX_JUMP_HEIGHT (1.2f)
+#define PLAYER_MAX_DOUBLE_JUMP_HEIGHT (1.05f)
 #define PLAYER_MIN_JUMP_HEIGHT (0.3f)
 #define WORLD_TILE_SIZE (0.25f)
 
@@ -89,6 +90,7 @@ struct Player {
     v2 visual_dim;
     v2 visual_offset;
 
+    f32 drill_particle_time;
     Playing_Sound *drill_hit_sound;
 };
 
@@ -107,8 +109,25 @@ struct Tile {
     f32 drill_time;
 };
 
+struct Particle {
+    Image_Handle image;
+
+    v3 p;
+    v3 dp;
+
+    f32 a;
+    f32 da;
+
+    f32 s;
+    f32 ds;
+
+    f32 t;
+};
+
 struct Mode_Play {
     Memory_Arena *arena;
+
+    Playing_Sound *music;
 
     // Player
     //
@@ -137,6 +156,10 @@ struct Mode_Play {
     // World data
     //
     Tile *tiles;
+
+    u32 max_particles;
+    u32 next_particle;
+    Particle *particle_cache;
 };
 
 function void ModePlay(Game_State *state, Random random);
@@ -146,5 +169,9 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
 
 function b32 IsValidTile(v2s tile_p); // Checks if the tile position is valid within the world grid
 function u32 GetCloseTiles(v2 p, Tile *tiles, Tile **out); // Get all of the tiles close to the position
+
+function void SpawnDrillDebris(Mode_Play *play, v2 p, Image_Handle image);
+
+function void UpdateRenderParticles(Draw_Batch *batch, Mode_Play *play, f32 dt);
 
 #endif  // LUDUM_MODE_PLAY_H_
