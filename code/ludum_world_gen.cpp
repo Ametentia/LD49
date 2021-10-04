@@ -90,34 +90,121 @@ function void SpawnPopulation(Tile *tiles, Random *random) {
     }
 }
 
-function void GenerateWorld(Tile *tiles, Random *random, Asset_Manager *assets) {
-    SpawnPopulation(tiles, random);
-    SimGeneration(tiles, 15);
+function b32 EnemyCanSpawn(Tile *tiles, v2s tile_p) {
+    b32 result = false;
+
+    if (tile_p.x < 14 && (tile_p.y < (WORLD_Y_SIZE - 14))) { return result; }
+
+    for (s32 y = -2; y < 1; ++y) {
+        for (s32 x = -1; x < 1; ++x) {
+            v2s tp = V2S(tile_p.x + x, tile_p.y + y);
+
+            if (IsValidTile(tp)) {
+                Tile *tile = &tiles[(tp.y * WORLD_Y_SIZE) + tp.x];
+
+                if (y == 0) {
+                    if (tile->type != Tile_Ground) {
+                        return result;
+                    }
+                }
+                else if (tile->type != Tile_Air) {
+                    return result;
+                }
+            }
+            else {
+                return result;
+            }
+        }
+    }
+
+    result = true;
+    return result;
+}
+
+function void SpawnEnemies(Mode_Play *play, Asset_Manager *assets) {
+    Random *random = &play->random;
+
+    v2s p = V2S(1, 1);
+
+    while (true) {
+        if (EnemyCanSpawn(play->tiles, p) && (RandomU32(random, 0, 25) <= 3)) {
+            Enemy *enemy = &play->enemies[play->enemy_count];
+            play->enemy_count += 1;
+            if (play->enemy_count >= 128) { break; }
+
+            v2s above = V2S(p.x, p.y - 1);
+
+            Initialise(&enemy->anim, GetImageByName(assets, "driller"), 1, 6, 1.0f / 24.0f);
+
+            enemy->p       = V2(above) * V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
+            enemy->dp      = V2(0, 0);
+            enemy->x_scale = 1;
+
+            enemy->alive = true;
+
+            p.x += 12;
+        }
+        else {
+            p.x += 1;
+        }
+
+        if (p.x >= WORLD_X_SIZE) {
+            p.x  = 1;
+            p.y += 1;
+        }
+
+        if (p.y >= (WORLD_Y_SIZE - 2)) { break; }
+    }
+}
+
+function void GenerateWorld(Mode_Play *play, Random *random, Asset_Manager *assets) {
+    SpawnPopulation(play->tiles, random);
+    SimGeneration(play->tiles, 15);
 
     str8 ground_tile_names[] = {
         WrapConst("ground_01"),
     };
 
+
+    v2 tile_dim = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
     for (u32 y = 0; y < WORLD_Y_SIZE; ++y) {
         for (u32 x = 0; x < WORLD_X_SIZE; ++x) {
-            Tile *tile  = &tiles[(y * WORLD_Y_SIZE) + x];
+            Tile *tile  = &play->tiles[(y * WORLD_Y_SIZE) + x];
             if (tile->type == Tile_Air) { continue; }
+
+            tile->scale = V2(1, 1);
 
             v2s tile_p  = V2S(x, y);
             v2s above_p = V2S(x, y - 1);
+            v2s below_p = V2S(x, y + 1);
 
             u32 index = NextRandom(random) % ArraySize(ground_tile_names);
             str8 name = ground_tile_names[index];
 
             if (IsValidTile(above_p)) {
-                Tile *above = &tiles[(above_p.y * WORLD_Y_SIZE) + above_p.x];
+                Tile *above = &play->tiles[(above_p.y * WORLD_Y_SIZE) + above_p.x];
 
-                if (above->type != Tile_Air) {
-                    name = WrapConst("ground_under");
+                if (IsValidTile(below_p)) {
+                    Tile *below = &play->tiles[(below_p.y * WORLD_Y_SIZE) + below_p.x];
+
+                    if (below->type == Tile_Air && above->type != Tile_Air) {
+                        tile->scale.y = -1;
+                    }
+                    else if (above->type != Tile_Air) {
+                        name = WrapConst("ground_02");
+                    }
+
+                    // if (above->type == Tile_Air && below->type == Tile_Air) { tile->scale.y = 1; }
                 }
+                else if (above->type != Tile_Air) {
+                    name = WrapConst("ground_02");
+                }
+
             }
 
             tile->image = GetImageByName(assets, name);
         }
     }
+
+    SpawnEnemies(play, assets);
 }

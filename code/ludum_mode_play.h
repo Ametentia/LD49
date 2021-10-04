@@ -47,7 +47,8 @@
 enum Player_Flags {
     Player_OnGround   = (1 << 0),
     Player_Drilling   = (1 << 1),
-    Player_DoubleJump = (1 << 2)
+    Player_DoubleJump = (1 << 2),
+    Player_Attacking  = (1 << 3)
 };
 
 enum Player_Animation {
@@ -80,6 +81,11 @@ struct Player {
     v2 p;
     v2 dp;
 
+    Sprite_Animation attack_anim;
+    Sprite_Animation drill_anim;
+
+    // These are specifically for player body
+    //
     Sprite_Animation *animations;
     Player_Animation cur_anim;
 
@@ -90,8 +96,23 @@ struct Player {
     v2 visual_dim;
     v2 visual_offset;
 
+    v2 drill_p;
+    v2 drill_dp;
+
     f32 drill_particle_time;
     Playing_Sound *drill_hit_sound;
+};
+
+struct Enemy {
+    b32 alive;
+
+    Sprite_Animation anim;
+
+    v2 p;
+    v2 dp;
+
+    f32 x_scale;
+    f32 decision_wait;
 };
 
 enum Tile_Type {
@@ -107,7 +128,10 @@ struct Tile {
     Tile_Type type;
     v2u grid_p;
     f32 drill_time;
+
+    v2 scale;
 };
+
 struct Mode_MiniGame;
 
 struct Particle {
@@ -138,6 +162,9 @@ struct Mode_Play {
     u32 count;
     u32 next_last_p;
     v2 last_p[128];
+
+    u32 enemy_count;
+    Enemy enemies[128];
 
     // Camera movement
     //
@@ -171,8 +198,10 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
 function b32 IsValidTile(v2s tile_p); // Checks if the tile position is valid within the world grid
 function u32 GetCloseTiles(v2 p, Tile *tiles, Tile **out); // Get all of the tiles close to the position
 
-function void SpawnDrillDebris(Mode_Play *play, v2 p, Image_Handle image);
+function void SpawnDrillDebris(Mode_Play *play, Asset_Manager *assets, v2 p);
 
 function void UpdateRenderParticles(Draw_Batch *batch, Mode_Play *play, f32 dt);
+
+function void UpdateEnemy(Mode_Play *play, Enemy *enemy, f32 dt);
 
 #endif  // LUDUM_MODE_PLAY_H_
