@@ -38,16 +38,19 @@
 
 // Camera movement
 //
-#define CAMERA_STIFFNESS (20.0f)
+#define CAMERA_STIFFNESS (28.0f)
 #define CAMERA_DAMPING   (12.0f)
 
 enum Player_Flags {
-    Player_OnGround = (1 << 0)
+    Player_OnGround   = (1 << 0),
+    Player_DoubleJump = (1 << 2),
 };
 
 enum Player_Animation {
-    Player_Idle = 0,
-    Player_Run
+    PlayerAnimation_Idle = 0,
+    PlayerAnimation_Run,
+
+    PlayerAnimation_Count
 };
 
 struct Bird_Follower {
@@ -72,11 +75,13 @@ struct Player {
 
     v2 p;
     v2 dp;
-    Sprite_Animation animations[2];
-    Player_Animation current_animation;
+
+    Sprite_Animation *animations;
+    Player_Animation cur_anim;
+
     Bird_Follower birds[3];
 
-    f32 x_scale;
+    f32 facing;
     v2 dim;
     v2 visual_dim;
     v2 visual_offset;
@@ -88,6 +93,8 @@ enum Tile_Type {
 };
 
 struct Tile {
+    Image_Handle image;
+
     Tile_Type type;
     v2u grid_p;
 };
@@ -110,6 +117,12 @@ struct Mode_Play {
     v2 camera_p;
     v2 camera_dp;
 
+    v2 shake_offset;
+    f32 shake_angle;
+
+    f32 shake_t;
+    f32 shake;
+
     b32 debug_camera_enabled;
     v3 debug_camera_p;
 
@@ -122,5 +135,8 @@ function void ModePlay(Game_State *state, Random random);
 function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buffer *renderer_buffer);
 
 function void UpdatePlayer(Mode_Play *play, Player *player, Input *input);
+
+function b32 IsValidTile(v2s tile_p); // Checks if the tile position is valid within the world grid
+function u32 GetCloseTiles(v2 p, Tile *tiles, Tile **out); // Get all of the tiles close to the position
 
 #endif  // LUDUM_MODE_PLAY_H_

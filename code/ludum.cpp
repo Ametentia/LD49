@@ -1,5 +1,12 @@
 #include <base.cpp>
 
+// @Missing: Should be in base
+//
+function f32 Sign(f32 x) {
+    f32 result = (x < 0) ? -1 : 1;
+    return result;
+}
+
 #include "ludum_mode_splash.cpp"
 #include "ludum_mode_play.cpp"
 
