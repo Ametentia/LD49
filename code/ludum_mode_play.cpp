@@ -24,6 +24,9 @@ function void ModePlay(Game_State *state, Random random) {
     player->visual_dim    = V2(0.5, 0.5);
     player->visual_offset = V2(0,  -0.1);
 
+    player->drill_p  = player->p;
+    player->drill_dp = V2(0, 0);
+
     str8 animation_names[PlayerAnimation_Count] = {
         WrapConst("idle"),
         WrapConst("running")
@@ -38,6 +41,12 @@ function void ModePlay(Game_State *state, Random random) {
         Image_Handle handle = GetImageByName(&state->assets, animation_names[it]);
         Initialise(&player->animations[it], handle, 1, frame_counts[it], 1.0f / 24.0f);
     }
+
+    Image_Handle attack_sheet = GetImageByName(&state->assets, "attack");
+    Initialise(&player->attack_anim, attack_sheet, 1, 6, 1.0f / 24.0f);
+
+    Image_Handle drill_sheet = GetImageByName(&state->assets, "drilling");
+    Initialise(&player->drill_anim, drill_sheet, 1, 3, 1.0f / 24.0f);
 
     // Setup bird followers
     //
@@ -70,14 +79,14 @@ function void ModePlay(Game_State *state, Random random) {
     play->debug_camera_p = V3(0, 0, 5);
 
     play->tiles = AllocArray(play->arena, Tile, (WORLD_X_SIZE * WORLD_Y_SIZE));
-    GenerateWorld(play->tiles, &random, &state->assets);
+    GenerateWorld(play, &random, &state->assets);
 
     play->max_particles = 1024;
     play->next_particle = 0;
     play->particle_cache = AllocArray(play->arena, Particle, play->max_particles);
 
     Sound_Handle music_handle = GetSoundByName(&state->assets, "bgm");
-    play->music = PlaySound(&state->audio_state, music_handle, PlayingSound_Looped);
+    play->music = PlaySound(&state->audio_state, music_handle, PlayingSound_Looped, V2(0.0, 0.0));
 
     state->mode = GameMode_Play;
     state->play = play;
@@ -96,7 +105,9 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     // @Debug: Regenerate world
     //
     if (JustPressed(input->keys[Key_F3])) {
-        GenerateWorld(play->tiles, &play->random, &state->assets);
+        play->enemy_count = 0;
+
+        GenerateWorld(play, &play->random, &state->assets);
 
         player->p       = V2(WORLD_TILE_SIZE * 4, (WORLD_Y_SIZE - 3) * WORLD_TILE_SIZE);
         play->camera_p  = player->p + V2(12 * WORLD_TILE_SIZE, -15 * WORLD_TILE_SIZE);
@@ -130,10 +141,9 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
     play->shake    = Max(play->shake, 0);
 
     if (play->shake_t <= 0) {
-        //play->shake_t = RandomF32(&play->random, 3.9, 9.2);
-        play->shake_t = RandomF32(&play->random, 1.4, 2.8);
+        play->shake_t = RandomF32(&play->random, 3.9, 9.2);
 
-        play->shake += RandomUnilateral(&play->random);
+        play->shake += 0.4 * RandomUnilateral(&play->random);
         play->shake  = Min(play->shake, 1.0f);
     }
     else if (JustPressed(input->keys[Key_O])) {
@@ -245,13 +255,43 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
 
     // @Debug: Player hitbox outline
     //
-    DrawQuadOutline(batch, player->p, player->dim, 0, V4(1, 0, 0, 1), 0.01);
+    //DrawQuadOutline(batch, player->p, player->dim, 0, V4(1, 0, 0, 1), 0.01);
 
-    if (player->flags & Player_Drilling) {
-        Image_Handle drill = GetImageByName(&state->assets, "drill");
-        v2 drill_pos       = player->p + V2(0.08 * player->facing, 0.04);
+    if (player->flags & Player_Attacking) {
+        v2 anim_p = player->p + V2(player->facing * 0.15, 0.03);
+        Sprite_Animation *attack_anim = &player->attack_anim;
+        DrawAnimation(batch, attack_anim, anim_p, V2(player->facing * 0.6, 0.4));
 
-        DrawQuad(batch, drill, drill_pos, V2(0.3 * player->facing, 0.1), 0, V4(1, 1, 1, 1));
+        u32 total_frames = (attack_anim->rows * attack_anim->cols);
+        if (attack_anim->current_frame == total_frames - 1) {
+            player->flags &= ~Player_Attacking;
+            attack_anim->current_frame = 0;
+            attack_anim->time = 0;
+
+            player->drill_p = anim_p;
+        }
+    }
+    else {
+        v2 drill_dim = V2(0.3 * player->facing, 0.13);
+        if (player->flags & Player_Drilling) {
+            drill_dim.y = 0.3f;
+
+            DrawAnimation(batch, &player->drill_anim, player->drill_p - V2(0, 0.05), drill_dim);
+        }
+        else {
+            f32 angle = (player->facing * Degrees(30));
+
+            Image_Handle drill = GetImageByName(&state->assets, "drill");
+            DrawQuad(batch, drill, player->drill_p, drill_dim, angle);
+        }
+    }
+
+    v2 enemy_dim = V2(0.5, 0.5);
+    for (u32 it = 0; it < play->enemy_count; ++it) {
+        Enemy *enemy = &play->enemies[it];
+
+        UpdateEnemy(play, enemy, dt);
+        DrawAnimation(batch, &enemy->anim, enemy->p - V2(0, 0.11f), V2(enemy->x_scale * enemy_dim.x, enemy_dim.y));
     }
 
     UpdateRenderParticles(batch, play, dt);
@@ -293,6 +333,7 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
 function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_State *state) {
     f32 dt = input->delta_time;
 
+    b32 attacking = (player->flags & Player_Attacking);
     b32 on_ground = (player->flags & Player_OnGround);
 
     f32 gravity = (2 * PLAYER_MAX_JUMP_HEIGHT) / (PLAYER_JUMP_APEX_TIME * PLAYER_JUMP_APEX_TIME);
@@ -306,7 +347,13 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
     }
 
     Sprite_Animation *anim = &player->animations[player->cur_anim];
+
     UpdateAnimation(anim, dt);
+    UpdateAnimation(&player->drill_anim, dt);
+
+    if (attacking) {
+        UpdateAnimation(&player->attack_anim, dt);
+    }
 
     // Move left
     //
@@ -368,9 +415,8 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
 
     // Limit x speed
     //
-    f32 max_speed = (player->flags & Player_Drilling) ? PLAYER_MAX_SPEED_X_DRILLING : PLAYER_MAX_SPEED_X;
-    if (Abs(player->dp.x) > max_speed) {
-        player->dp.x *= (max_speed / Abs(player->dp.x));
+    if (Abs(player->dp.x) > PLAYER_MAX_SPEED_X) {
+        player->dp.x *= (PLAYER_MAX_SPEED_X / Abs(player->dp.x));
     }
 
     // Limit y only in downward direction to prevent jumps from being cut short
@@ -393,9 +439,21 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
         // TODO stop Drill noise
     }
 
+    // Attack
+    //
+    if (!attacking && JustPressed(input->keys[Key_J])) {
+        player->flags |= Player_Attacking;
+    }
+
+    v2 drill_target = player->p + V2(player->facing * 0.12, 0.1f);
+
+    v2 drill_ddp = (800 * (drill_target - player->drill_p)) - (25 * player->drill_dp);
+    player->drill_p  += (0.5f * drill_ddp * dt * dt) + (player->drill_dp * dt);
+    player->drill_dp += (drill_ddp * dt);
+
     // Calculate the drill collision box
     //
-    v2 drill_pos = player->p + V2(0.08 * player->facing, -0.15f);
+    v2 drill_pos = player->p + V2(0.08 * player->facing, -0.15f); // This is not visual position
     v2 drill_dim = V2(0.3, 0.4);
 
     rect2 drill_r;
@@ -422,6 +480,8 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
         for (u32 it = 0; it < tile_count; ++it) {
             Tile *tile = collision_tiles[it];
             if (tile->type < 0) { continue; }
+            if (tile->grid_p.x == 0 || tile->grid_p.y == 0) { continue; }
+            if ((tile->grid_p.x + 1) == WORLD_X_SIZE || (tile->grid_p.y + 1) == WORLD_Y_SIZE) { continue; }
 
             v2 tile_p = V2(tile->grid_p) * tile_dim;
 
@@ -440,9 +500,8 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
                     if (tile->drill_time > TILE_DRILL_TIME) {
                         tile->type = Tile_Air;
 
-                        Image_Handle image = GetImageByName(&state->assets, "ground_01");
                         for (u32 p = 0; p < 4; ++p) {
-                            SpawnDrillDebris(play, drill_pos + V2(player->facing * drill_dim.x, 0.19f), image);
+                            SpawnDrillDebris(play, &state->assets, drill_pos + V2(player->facing * drill_dim.x, 0.19f));
                         }
                     }
                     else {
@@ -467,10 +526,9 @@ function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_S
 
             player->drill_particle_time -= dt;
             if (player->drill_particle_time <= 0.0f) {
-                Image_Handle image = GetImageByName(&state->assets, "ground_01");
                 u32 particle_count = RandomU32(&play->random, 2, 8);
                 for (u32 p = 0; p < particle_count; ++p) {
-                    SpawnDrillDebris(play, drill_pos + V2(player->facing * 0.85 * drill_dim.x, 0.19), image);
+                    SpawnDrillDebris(play, &state->assets, drill_pos + V2(player->facing * 0.55 * drill_dim.x, 0.19));
                 }
 
                 player->drill_particle_time = 0.2f;
@@ -585,12 +643,7 @@ function void SpawnParticle(Mode_Play *play, Image_Handle image, v3 p, v3 dp, f3
     particle->t     = t;
 }
 
-function void SpawnDrillDebris(Mode_Play *play, v2 p, Image_Handle image) {
-    // p and dp
-    //
-    //v2 p_var = 0.1 * V2(RandomBilateral(&play->random), RandomBilateral(&play->random));
-    //p += p_var;
-
+function void SpawnDrillDebris(Mode_Play *play, Asset_Manager *assets, v2 p) {
     v2 dp = V2(RandomBilateral(&play->random), RandomBilateral(&play->random));
 
     // a and da
@@ -598,12 +651,29 @@ function void SpawnDrillDebris(Mode_Play *play, v2 p, Image_Handle image) {
     f32 a  = RandomF32(&play->random, 0, Tau32);
     f32 da = RandomUnilateral(&play->random);
 
-    // s and ds
-    //
-    f32 s  = 0.05f;
-    f32 ds = 0; // 0.05 * RandomUnilateral(&play->random);
-
     f32 t = RandomF32(&play->random, 0.5f, 1.3f);
+
+    str8 image_names[] = {
+        WrapConst("pebble_01"),
+        WrapConst("pebble_02"),
+        WrapConst("spark_01"),
+        WrapConst("spark_02"),
+        WrapConst("spark_03"),
+        WrapConst("spark_04")
+    };
+
+    u32 choice = NextRandom(&play->random) % ArraySize(image_names);
+    Image_Handle image = GetImageByName(assets, image_names[choice]);
+
+    f32 s, ds;
+    if (choice != 0) {
+        s  = 0.08f;
+        ds = -0.18f * RandomF32(&play->random, 0.5f, 1.0f);
+    }
+    else {
+        s  = 0.1 * RandomF32(&play->random, 0.8f, 1.0f);
+        ds = 0;
+    }
 
     // @Todo: Image handle
     //
@@ -626,5 +696,155 @@ function void UpdateRenderParticles(Draw_Batch *batch, Mode_Play *play, f32 dt) 
         p->t -= dt;
 
         DrawQuad(batch, p->image, p->p, V2(p->s, p->s), p->a);
+    }
+}
+
+function b32 CanTraverse(Mode_Play *play, v2 p, f32 xdir) {
+    b32 result = false;
+
+    v2s grid_p;
+    grid_p.x = cast(s32) ((p.x / WORLD_TILE_SIZE) + 0.5f);
+    grid_p.y = cast(s32) ((p.y / WORLD_TILE_SIZE) + 0.5f);
+
+    grid_p.x += xdir;
+    grid_p.y += 1; // Tile below for standing on
+
+    if (IsValidTile(grid_p)) {
+        Tile *tile = &play->tiles[(grid_p.y * WORLD_Y_SIZE) + grid_p.x];
+        result = (tile->type == Tile_Ground);
+    }
+
+    return result;
+}
+
+function void UpdateEnemy(Mode_Play *play, Enemy *enemy, f32 dt) {
+    UpdateAnimation(&enemy->anim, dt);
+
+    f32 gravity = (2 * PLAYER_MAX_JUMP_HEIGHT) / (PLAYER_JUMP_APEX_TIME * PLAYER_JUMP_APEX_TIME);
+    v2 ddp = V2(0, gravity);
+
+    enemy->p  += (enemy->dp * dt);
+    enemy->dp += (ddp * dt);
+
+    if (!CanTraverse(play, enemy->p, enemy->dp.x)) {
+        enemy->dp.x = 0;
+    }
+
+    enemy->decision_wait -= dt;
+    if (enemy->decision_wait < 0) {
+        u32 move_decision = RandomU32(&play->random, 0, 3);
+        switch (move_decision) {
+            case 0:
+            case 2: {
+                if (CanTraverse(play, enemy->p, 1)) {
+                    enemy->dp.x    = 1;
+                    enemy->x_scale = -1;
+                }
+                else {
+                    enemy->dp.x    = -1;
+                    enemy->x_scale = 1;
+                }
+            }
+            break;
+            case 1:
+            case 3: {
+                if (CanTraverse(play, enemy->p, -1)) {
+                    enemy->dp.x    = -1;
+                    enemy->x_scale = 1;
+                }
+                else {
+                    enemy->dp.x    = 1;
+                    enemy->x_scale = -1;
+                }
+            }
+        }
+
+        enemy->decision_wait = RandomF32(&play->random, 2.2f, 9.1f);
+    }
+
+    // Check collision with player
+    //
+    Player *player = &play->player;
+
+    v2 enemy_dim = V2(0.15f, 0.3f);
+    v2 tile_dim  = V2(WORLD_TILE_SIZE, WORLD_TILE_SIZE);
+
+    rect2 enemy_r;
+    enemy_r.min = enemy->p - 0.5f * V2(1.8, 1) * enemy_dim;
+    enemy_r.max = enemy->p + 0.5f * V2(1.8, 1) * enemy_dim;
+
+    rect2 player_r;
+    player_r.min = player->p - (0.5f * player->dim);
+    player_r.max = player->p + (0.5f * player->dim);
+
+    if (player->flags & Player_Attacking) {
+        v2 attack_dim = V2(0.6, 0.4);
+        v2 anim_p = player->p + V2(player->facing * 0.15, 0.03);
+
+        player_r.min = anim_p - (0.5f * attack_dim);
+        player_r.max = anim_p + (0.5f * attack_dim);
+    }
+
+    {
+        v2 overlap;
+        overlap.x = Min(enemy_r.max.x, player_r.max.x) - Max(enemy_r.min.x, player_r.min.x);
+        overlap.y = Min(enemy_r.max.y, player_r.max.y) - Max(enemy_r.min.y, player_r.min.y);
+
+        if (overlap.x >= 0 && overlap.y >= 0) {
+            // @Todo: Start minigame here
+            //
+            //
+        }
+    }
+
+    // Check collision with world
+    //
+    Tile *collision_tiles[9];
+    u32 tile_count = GetCloseTiles(enemy->p, play->tiles, collision_tiles);
+
+    for (u32 it = 0; it < tile_count; ++it) {
+        Tile *tile = collision_tiles[it];
+        if (tile->type < 0) { continue; }
+
+        v2 tile_p = V2(tile->grid_p) * tile_dim;
+
+        rect2 tile_r;
+        tile_r.min = tile_p - (0.5f * tile_dim);
+        tile_r.max = tile_p + (0.5f * tile_dim);
+
+        v2 overlap;
+        overlap.x = Min(enemy_r.max.x, tile_r.max.x) - Max(enemy_r.min.x, tile_r.min.x);
+        overlap.y = Min(enemy_r.max.y, tile_r.max.y) - Max(enemy_r.min.y, tile_r.min.y);
+
+        if (overlap.x >= 0 && overlap.y >= 0) {
+            v2 dir = (enemy->p - tile_p);
+
+            if (overlap.x < overlap.y) {
+                if (overlap.x > 0) {
+                    f32 sign      = Sign(dir.x);
+                    enemy->dp.x *= -1;
+                    enemy->p.x  += (overlap.x * sign);
+                }
+            }
+            else {
+                f32 sign     = Sign(dir.y);
+                enemy->p.y += (overlap.y * sign);
+
+                if (sign < 0) {
+                    enemy->dp.y = 0;
+                }
+                else {
+                    // This shouldn't really happen but for completeness
+                    //
+                    enemy->dp.y  = 0;
+                    enemy->dp.y += (ddp.y * dt);
+                }
+            }
+
+            // Update the enemy hitbox to incorporate the new position
+            //
+            enemy_r.min = enemy->p - (0.5f * enemy_dim);
+            enemy_r.max = enemy->p + (0.5f * enemy_dim);
+        }
     }
 }
