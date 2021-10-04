@@ -129,6 +129,7 @@ struct Tile {
     v2u grid_p;
     f32 drill_time;
 };
+struct Mode_MiniGame;
 
 struct Particle {
     Image_Handle image;
@@ -153,7 +154,6 @@ struct Mode_Play {
     // Player
     //
     Player player;
-
     Random random;
 
     u32 count;
@@ -180,6 +180,7 @@ struct Mode_Play {
     // World data
     //
     Tile *tiles;
+    Mode_MiniGame *minigame;
 
     u32 max_particles;
     u32 next_particle;

@@ -328,6 +328,9 @@ function void UpdateRenderModePlay(Game_State *state, Input *input, Renderer_Buf
         //
         DrawQuad(batch, bird->image, bird->p, V2(0.3 * bird->x_scale, 0.3) * 0.4);
     }
+    if (IsPressed(input->keys[Key_Enter])) {
+        ModeMiniGame(state);
+    }
 }
 
 function void UpdatePlayer(Mode_Play *play, Player *player, Input *input, Game_State *state) {
