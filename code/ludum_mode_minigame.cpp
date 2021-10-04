@@ -346,7 +346,7 @@ function void BuildMap(Game_State *state){
             t->dim = V2(0.3,0.3);
             t->walkedOn = t->type == 0;
             t->p = V2(0.31*j - 3 + ((10-minigame->width/2)*0.3), 0.31*i - 2.5 + (8-minigame->height/2)*0.3);
-            t->asset = GetImageByName(&state->assets,t->type == 1 ? "ground_01" : "ground_02");
+            t->asset = GetImageByName(&state->assets,t->type == 1 ? "ground_01" : "pebble_02");
         }
     }
 }
