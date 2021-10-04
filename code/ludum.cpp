@@ -33,9 +33,7 @@ function void LudumUpdateRender(Game_Context *context, Input *input, Renderer_Bu
     }
 
     if (state->mode == GameMode_None) {
-        // TODO @Anyone: Change before release
-        //ModeSplash(state, input);
-        ModePlay(state, RandomSeed(input->ticks));
+        ModeSplash(state, input);
     }
 
     switch (state->mode) {

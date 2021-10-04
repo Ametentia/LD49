@@ -158,6 +158,7 @@ struct Mode_Play {
     //
     Player player;
     Random random;
+    u32 lives;
 
     u32 count;
     u32 next_last_p;
@@ -202,6 +203,6 @@ function void SpawnDrillDebris(Mode_Play *play, Asset_Manager *assets, v2 p);
 
 function void UpdateRenderParticles(Draw_Batch *batch, Mode_Play *play, f32 dt);
 
-function void UpdateEnemy(Mode_Play *play, Enemy *enemy, f32 dt);
+function void UpdateEnemy(Game_State *state, Mode_Play *play, Enemy *enemy, f32 dt);
 
 #endif  // LUDUM_MODE_PLAY_H_
