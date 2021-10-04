@@ -85,7 +85,7 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
         }
     }
 
-    MiniGameTile obstructionTiles[];
+    MiniGameTile obstructionTiles[2];
     u32 j = 0;
     for(u32 i = 0; i < minigame->width*minigame->height; i++){
         if(minigame->tiles[i].value == 0){
@@ -98,13 +98,13 @@ function void UpdateMGPlayer(MiniGamePlayer *player, Input *input, Mode_MiniGame
         }
     }
     
-
     for(u32 i = 0; i < minigame->width*minigame->height; i++){
         if(Length(minigame->tiles[i].p - player->pos) < 0.05){
             minigame->tiles[i].walkedOn = true;
             minigame->tiles[i].asset = GetImageByName(&state->assets,"ground_02");
         }
     }
+    player->pos += movementVect;
 }
 
 function void BuildMap(Game_State *state){
