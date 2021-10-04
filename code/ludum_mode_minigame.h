@@ -7,11 +7,13 @@ enum MiniGameType {
 };
 
 struct MiniGamePlayer{
-    f32 x_scale;
     v2 pos;
+    bool alive;
     u32 xOnGrid;
     u32 yOnGrid;
     v2 dim;
+    f32 rotation;
+    v2 scale;
     Sprite_Animation animation;
 };
 
@@ -30,6 +32,7 @@ struct MiniGameTile{
 };
 
 struct MiniGameIceSkating {
+    bool won;
     MiniGamePlayer player;
     MiniGameTile tiles[12];
     u32 widths[4];
